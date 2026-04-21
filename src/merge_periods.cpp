@@ -13,6 +13,8 @@ using namespace Rcpp;
 //' @param to_column Name of the To date column
 //' @param characteristic_beg_columns Character vector of column names that preserve beginning values
 //' @param characteristic_end_columns Character vector of column names that take ending values
+//' @param gap_threshold Maximum gap between periods that is still considered continuous
+//' @param keep_all_periods Included for API symmetry with the R wrapper
 //' @return DataFrame with merged periods and gap calculations
 //'
 //' @keywords internal
@@ -25,6 +27,7 @@ DataFrame merge_relationship_periods(DataFrame dtable,
                                    CharacterVector characteristic_end_columns,
                                    int gap_threshold,
                                    bool keep_all_periods) {
+  (void) keep_all_periods;
   int marker = 0;
 
   CharacterVector ID = dtable[id_column];
@@ -53,14 +56,14 @@ DataFrame merge_relationship_periods(DataFrame dtable,
     if (ID[i] != ID[i-1]) {
       marker = i;
     } else {
-      // Same customer - calculate gap between current and marker period
-      Difference[i] = From[i] - To[marker] - 1;  // Number of gap days
+      // Same customer - calculate the legacy difference used by endvers.R
+      Difference[i] = From[i] - To[marker];
 
-      // If gap > 1, start new period
-      if (Difference[i] > 1) {
+      // If gap exceeds the allowed threshold, start a new period
+      if (Difference[i] > gap_threshold) {
         marker = i;
       }
-      // If gap <= 1, merge by extending marker period
+      // Otherwise merge by extending the marker period
       else if (To[i] > To[marker]) {
         To[marker] = To[i];
 

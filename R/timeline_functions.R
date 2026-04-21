@@ -1,44 +1,8 @@
-#' Validate Customer Relationship Data
+#' Internal validator for customer relationship data
 #'
-#' Checks that input data has the required columns and correct data types
-#' for customer timeline processing.
+#' Checks that input data has the required columns before timeline processing.
 #'
-#' @param data_frame A data.frame or data.table to validate
-#' @param id_column Character string specifying the ID column name (default: "ID")
-#' @param from_column Character string specifying the start date column name (default: "From")
-#' @param to_column Character string specifying the end date column name (default: "To")
-#' @param characteristic_beg_columns Character vector of column names that should preserve beginning values
-#' @param characteristic_end_columns Character vector of column names that should take ending values
-#'
-#' @return Invisibly returns TRUE if valid, otherwise throws an error
-#'
-#' @details
-#' Required columns depend on the parameters:
-#' - ID column (specified by id_column)
-#' - From column (specified by from_column)
-#' - To column (specified by to_column)
-#' - Characteristic columns (specified by characteristic_beg_columns and characteristic_end_columns)
-#'
-#' @examples
-#' \dontrun{
-#' data <- data.table::data.table(
-#'   CustomerID = c("A", "A", "B"),
-#'   StartDate = c("2020-01-01", "2020-01-02", "2020-02-01"),
-#'   EndDate = c("2020-01-01", "2020-01-03", "2020-02-05"),
-#'   StatusBeg = c("New", "New", "Returning"),
-#'   StatusEnd = c("Active", "Active", "Active"),
-#'   TypeBeg = c("Premium", "Premium", "Basic"),
-#'   TypeEnd = c("Premium", "Gold", "Premium")
-#' )
-#' validate_customer_data(data,
-#'                       id_column = "CustomerID",
-#'                       from_column = "StartDate",
-#'                       to_column = "EndDate",
-#'                       characteristic_beg_columns = c("StatusBeg", "TypeBeg"),
-#'                       characteristic_end_columns = c("StatusEnd", "TypeEnd"))
-#' }
-#'
-#' @export
+#' @noRd
 validate_customer_data <- function(data_frame,
                                  id_column = "ID",
                                  from_column = "From",
@@ -49,17 +13,17 @@ validate_customer_data <- function(data_frame,
   required_cols <- c(id_column, from_column, to_column,
                     characteristic_beg_columns, characteristic_end_columns)
 
-  if (!is.data.frame(dtable)) {
+  if (!is.data.frame(data_frame)) {
     stop("Input must be a data.frame or data.table", call. = FALSE)
   }
 
-  missing_cols <- setdiff(required_cols, names(dtable))
+  missing_cols <- setdiff(required_cols, names(data_frame))
   if (length(missing_cols) > 0) {
     stop("Missing required columns: ", paste(missing_cols, collapse = ", "),
          call. = FALSE)
   }
 
-  if (nrow(dtable) == 0) {
+  if (nrow(data_frame) == 0) {
     stop("Input data is empty", call. = FALSE)
   }
 
@@ -70,16 +34,18 @@ validate_customer_data <- function(data_frame,
 #' Calculate Customer Relationship Timeline
 #'
 #' Process customer relationship data to identify and merge consecutive periods
-#' with gaps of 1 day or less. Uses Rcpp for efficient C++ processing and
+#' with gaps up to a configurable threshold. Uses Rcpp for efficient C++ processing and
 #' data.table for scalability.
 #'
-#' @param dtable A data.frame or data.table containing customer relationship data
+#' @param data_frame A data.frame or data.table containing customer relationship data
 #' @param gap_threshold Integer. Maximum gap (in days) between periods to merge (default: 1)
 #' @param id_column Character string. Name of the customer ID column (default: "ID")
 #' @param from_column Character string. Name of the start date column (default: "From")
 #' @param to_column Character string. Name of the end date column (default: "To")
 #' @param characteristic_beg_columns Character vector. Column names that should preserve beginning values (default: "CharacteristicBeg")
 #' @param characteristic_end_columns Character vector. Column names that should take ending values (default: c("CharacteristicEnd1", "CharacteristicEnd2"))
+#' @param keep_all_periods Logical. If TRUE, keep the internal gap diagnostics in the returned merged periods (default: FALSE)
+#' @param verbose Logical. If TRUE, print processing time and result summary (default: TRUE)
 #' @param output_columns Character vector. Columns to include in output. If NULL, includes all relevant columns (default: NULL)
 #' @param include_gap_column Logical. If TRUE and keep_all_periods is TRUE, include the Difference column showing gaps (default: TRUE)
 #' @param copy_data Logical. If TRUE, work on a copy of the input data. If FALSE, modify input data in place (default: TRUE)
@@ -98,8 +64,8 @@ validate_customer_data <- function(data_frame,
 #' 2. Converts to data.table if necessary
 #' 3. Coerces date columns to Date class
 #' 4. Sorts by ID and From date
-#' 5. Calls C++ merge function to identify and merge periods
-#' 6. Filters results based on keep_all_periods parameter
+#' 5. Calls the C++ merge function to identify and merge continuous periods
+#' 6. Returns one row per merged period, matching the legacy endvers.R output
 #' 7. Selects output columns based on output_columns parameter
 #'
 #' Processing time is printed to console upon completion when verbose = TRUE.
@@ -145,12 +111,14 @@ validate_customer_data <- function(data_frame,
 #'                                         to_column = "EndDate",
 #'                                         characteristic_beg_columns = c("StatusBeg", "TypeBeg"),
 #'                                         characteristic_end_columns = c("StatusEnd", "TypeEnd"),
-#'                                         output_columns = c("CustomerID", "StartDate", "EndDate", "StatusBeg", "TypeEnd"))
+#'                                         output_columns = c("CustomerID", "StartDate",
+#'                                                            "EndDate", "StatusBeg",
+#'                                                            "TypeEnd"))
 #' print(timeline3)
 #' }
 #'
 #' @export
-calculate_customer_timeline <- function(dtable,
+calculate_customer_timeline <- function(data_frame,
                                       gap_threshold = 1,
                                       id_column = "ID",
                                       from_column = "From",
@@ -164,19 +132,32 @@ calculate_customer_timeline <- function(dtable,
                                       copy_data = TRUE) {
 
   # Validate input
-  validate_customer_data(dtable, id_column, from_column, to_column,
+  validate_customer_data(data_frame, id_column, from_column, to_column,
                         characteristic_beg_columns, characteristic_end_columns)
+
+  if (!is.numeric(gap_threshold) || length(gap_threshold) != 1L ||
+      is.na(gap_threshold) || gap_threshold < 0) {
+    stop("gap_threshold must be a single non-negative number", call. = FALSE)
+  }
+
+  gap_threshold <- as.integer(gap_threshold)
 
   # Start timing
   start_time <- Sys.time()
 
   # Convert to data.table if needed and handle copying
-  if (!data.table::is.data.table(dtable)) {
-    data.table::setDT(dtable)
+  dtable <- data_frame
+  if (data.table::is.data.table(dtable)) {
     if (copy_data) {
       dtable <- data.table::copy(dtable)
     }
   } else if (copy_data) {
+    dtable <- data.table::as.data.table(dtable)
+  } else {
+    data.table::setDT(dtable)
+  }
+
+  if (!data.table::is.data.table(dtable)) {
     dtable <- data.table::copy(dtable)
   }
 
@@ -192,17 +173,19 @@ calculate_customer_timeline <- function(dtable,
   data.table::setorderv(dtable, c(id_column, from_column))
 
   # Apply Rcpp merge function
-  merged_dt <- data.table::setDT(
+  merged_dt <- data.table::as.data.table(
     merge_relationship_periods(dtable, id_column, from_column, to_column,
                               characteristic_beg_columns, characteristic_end_columns,
                               gap_threshold, keep_all_periods)
   )
 
+  period_start <- is.na(merged_dt$Difference) | merged_dt$Difference > gap_threshold
+
   # Filter results based on keep_all_periods
   if (keep_all_periods) {
-    result <- merged_dt
+    result <- merged_dt[period_start]
   } else {
-    result <- merged_dt[!is.na(Difference) & Difference > 0]
+    result <- merged_dt[period_start]
   }
 
   # Handle gap column inclusion
@@ -219,7 +202,7 @@ calculate_customer_timeline <- function(dtable,
       stop("Requested output columns not found in result: ",
            paste(missing_cols, collapse = ", "), call. = FALSE)
     }
-    result <- result[, ..output_columns]
+    result <- result[, .SD, .SDcols = output_columns]
   }
 
   # End timing and report

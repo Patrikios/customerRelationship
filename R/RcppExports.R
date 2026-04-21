@@ -13,10 +13,12 @@
 #' @param to_column Name of the To date column
 #' @param characteristic_beg_columns Character vector of column names that preserve beginning values
 #' @param characteristic_end_columns Character vector of column names that take ending values
+#' @param gap_threshold Maximum gap between periods that is still considered continuous
+#' @param keep_all_periods Included for API symmetry with the R wrapper
 #' @return DataFrame with merged periods and gap calculations
 #'
 #' @keywords internal
-merge_relationship_periods <- function(dtable, id_column, from_column, to_column, characteristic_beg_columns, characteristic_end_columns) {
-    .Call(`_customerRelationship_merge_relationship_periods`, dtable, id_column, from_column, to_column, characteristic_beg_columns, characteristic_end_columns)
+merge_relationship_periods <- function(dtable, id_column, from_column, to_column, characteristic_beg_columns, characteristic_end_columns, gap_threshold, keep_all_periods) {
+    .Call(`_customerRelationship_merge_relationship_periods`, dtable, id_column, from_column, to_column, characteristic_beg_columns, characteristic_end_columns, gap_threshold, keep_all_periods)
 }
 

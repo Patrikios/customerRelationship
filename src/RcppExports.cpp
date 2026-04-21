@@ -11,8 +11,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // merge_relationship_periods
-DataFrame merge_relationship_periods(DataFrame dtable, std::string id_column, std::string from_column, std::string to_column, CharacterVector characteristic_beg_columns, CharacterVector characteristic_end_columns);
-RcppExport SEXP _customerRelationship_merge_relationship_periods(SEXP dtableSEXP, SEXP id_columnSEXP, SEXP from_columnSEXP, SEXP to_columnSEXP, SEXP characteristic_beg_columnsSEXP, SEXP characteristic_end_columnsSEXP) {
+DataFrame merge_relationship_periods(DataFrame dtable, std::string id_column, std::string from_column, std::string to_column, CharacterVector characteristic_beg_columns, CharacterVector characteristic_end_columns, int gap_threshold, bool keep_all_periods);
+RcppExport SEXP _customerRelationship_merge_relationship_periods(SEXP dtableSEXP, SEXP id_columnSEXP, SEXP from_columnSEXP, SEXP to_columnSEXP, SEXP characteristic_beg_columnsSEXP, SEXP characteristic_end_columnsSEXP, SEXP gap_thresholdSEXP, SEXP keep_all_periodsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -22,13 +22,15 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::string >::type to_column(to_columnSEXP);
     Rcpp::traits::input_parameter< CharacterVector >::type characteristic_beg_columns(characteristic_beg_columnsSEXP);
     Rcpp::traits::input_parameter< CharacterVector >::type characteristic_end_columns(characteristic_end_columnsSEXP);
-    rcpp_result_gen = Rcpp::wrap(merge_relationship_periods(dtable, id_column, from_column, to_column, characteristic_beg_columns, characteristic_end_columns));
+    Rcpp::traits::input_parameter< int >::type gap_threshold(gap_thresholdSEXP);
+    Rcpp::traits::input_parameter< bool >::type keep_all_periods(keep_all_periodsSEXP);
+    rcpp_result_gen = Rcpp::wrap(merge_relationship_periods(dtable, id_column, from_column, to_column, characteristic_beg_columns, characteristic_end_columns, gap_threshold, keep_all_periods));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_customerRelationship_merge_relationship_periods", (DL_FUNC) &_customerRelationship_merge_relationship_periods, 6},
+    {"_customerRelationship_merge_relationship_periods", (DL_FUNC) &_customerRelationship_merge_relationship_periods, 8},
     {NULL, NULL, 0}
 };
 
