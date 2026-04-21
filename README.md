@@ -53,65 +53,85 @@ devtools::install()
 library(customerRelationship)
 library(data.table)
 
-# Create sample data
+# Basic usage with default column names
 data <- data.table(
-  ID = c("CUS001", "CUS001", "CUS001", "CUS002", "CUS002"),
-  From = as.Date(c("2020-01-01", "2020-01-02", "2020-02-01", 
-                   "2020-01-15", "2020-02-01")),
-  To = as.Date(c("2020-01-01", "2020-01-03", "2020-02-05", 
-                 "2020-01-20", "2020-02-10")),
-  CharacteristicBeg = c("Active", "Active", "Active", "Active", "Active"),
-  CharacteristicEnd1 = c("Type1", "Type1", "Type1", "Type1", "Type1"),
-  CharacteristicEnd2 = c("Cat_A", "Cat_B", "Cat_B", "Cat_C", "Cat_C")
+  ID = c("CUS001", "CUS001", "CUS001", "CUS002"),
+  From = as.Date(c("2020-01-01", "2020-01-02", "2020-02-01", "2020-01-15")),
+  To = as.Date(c("2020-01-01", "2020-01-03", "2020-02-05", "2020-01-20")),
+  CharacteristicBeg = c("Active", "Active", "Active", "Active"),
+  CharacteristicEnd1 = c("Type1", "Type1", "Type1", "Type1"),
+  CharacteristicEnd2 = c("Cat_A", "Cat_B", "Cat_B", "Cat_C")
 )
 
-# Validate data structure
-validate_customer_data(data)
+timeline <- calculate_customer_timeline(data)
+print(timeline)
 
-# Calculate customer timeline
-result <- calculate_customer_timeline(data)
+# Custom column names with multiple characteristics
+data2 <- data.table(
+  CustomerID = c("A", "A", "B"),
+  StartDate = c("2020-01-01", "2020-01-02", "2020-02-01"),
+  EndDate = c("2020-01-01", "2020-01-03", "2020-02-05"),
+  StatusBeg = c("New", "New", "Returning"),    # Beginning status
+  StatusEnd = c("Active", "Active", "Active"), # Ending status
+  TypeBeg = c("Basic", "Basic", "Premium"),    # Beginning type
+  TypeEnd = c("Basic", "Premium", "Gold")      # Ending type
+)
 
-# View results
-print(result)
+timeline2 <- calculate_customer_timeline(
+  data2,
+  id_column = "CustomerID",
+  from_column = "StartDate", 
+  to_column = "EndDate",
+  characteristic_beg_columns = c("StatusBeg", "TypeBeg"),
+  characteristic_end_columns = c("StatusEnd", "TypeEnd")
+)
+print(timeline2)
 ```
 
 ## Function Reference
 
-### `calculate_customer_timeline(dtable)`
+### `calculate_customer_timeline(dtable, ...)`
 
-Process customer relationship data and merge consecutive periods with gaps ≤ 1 day.
+Process customer relationship data and merge consecutive periods with gaps ≤ gap_threshold.
 
 **Parameters:**
 - `dtable`: A data.frame or data.table with customer relationship records
+- `gap_threshold`: Maximum gap (in days) between periods to merge (default: 1)
+- `id_column`: Name of the customer ID column (default: "ID")
+- `from_column`: Name of the start date column (default: "From")
+- `to_column`: Name of the end date column (default: "To")
+- `characteristic_beg_columns`: Column names that should preserve beginning values (default: "CharacteristicBeg")
+- `characteristic_end_columns`: Column names that should take ending values (default: c("CharacteristicEnd1", "CharacteristicEnd2"))
+- `keep_all_periods`: If TRUE, return all periods including merged ones (default: FALSE)
+- `verbose`: If TRUE, print processing time and result summary (default: TRUE)
+- `output_columns`: Columns to include in output. If NULL, includes all relevant columns (default: NULL)
+- `include_gap_column`: If TRUE and keep_all_periods is TRUE, include the Difference column (default: TRUE)
+- `copy_data`: If TRUE, work on a copy of the input data (default: TRUE)
 
-**Required Columns:**
-- `ID`: Customer identifier
-- `From`: Period start date
-- `To`: Period end date
-- `CharacteristicBeg`: Beginning characteristic
-- `CharacteristicEnd1`: First ending characteristic
-- `CharacteristicEnd2`: Second ending characteristic
-
-**Returns:** 
-A data.table with merged periods and gap calculations
+**Returns:**
+A data.table with merged periods
 
 **Output Columns:**
-- `ID`: Customer identifier
-- `From`: Period start date
-- `To`: Period end date (may be extended from merge)
-- `CharacteristicBeg`: Beginning characteristic
-- `CharacteristicEnd1`: First ending characteristic (updated from merge)
-- `CharacteristicEnd2`: Second ending characteristic (updated from merge)
-- `Difference`: Gap in days to previous period (> 1 indicates separate period)
+- ID column (name specified by id_column)
+- From column (name specified by from_column)
+- To column (name specified by to_column)
+- Beginning characteristic columns (preserve first period values)
+- Ending characteristic columns (take last period values)
+- Difference: Gap in days to previous period (only when keep_all_periods = TRUE and include_gap_column = TRUE)
 
-### `validate_customer_data(dtable)`
+### `validate_customer_data(dtable, ...)`
 
 Validate input data structure before processing.
 
 **Parameters:**
 - `dtable`: A data.frame or data.table to validate
+- `id_column`: Name of the ID column (default: "ID")
+- `from_column`: Name of the From date column (default: "From")
+- `to_column`: Name of the To date column (default: "To")
+- `characteristic_beg_columns`: Column names for beginning characteristics
+- `characteristic_end_columns`: Column names for ending characteristics
 
-**Returns:** 
+**Returns:**
 Invisibly returns TRUE if valid
 
 **Raises:**
