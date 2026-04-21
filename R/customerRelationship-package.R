@@ -1,0 +1,21 @@
+#' customerRelationship: Customer Relationship Timeline Processing
+#'
+#' Efficiently processes customer relationship data to identify and merge 
+#' consecutive periods with minimal gaps using Rcpp for performance and 
+#' data.table for scalability.
+#'
+#' @docType package
+#' @name customerRelationship
+#'
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib customerRelationship, .registration = TRUE
+#'
+#' @import data.table
+#' @importFrom anytime anydate
+#'
+#' @keywords internal
+"_PACKAGE"
+
+## usethis namespace: start
+## usethis namespace: end
+NULL
