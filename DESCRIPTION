@@ -1,6 +1,6 @@
 Package: customerRelationship
 Title: Customer Relationship Timeline Processing
-Version: 0.0.900
+Version: 0.1.100
 Authors@R: 
     person("Patrikios", "", email = "Patrikios@users.noreply.github.com", role = c("aut", "cre"))
 Description: Efficiently processes customer relationship data to identify and merge 

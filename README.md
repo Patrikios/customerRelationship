@@ -1,17 +1,15 @@
 # customerRelationship
 
-[![R-CMD-check](https://github.com/patrikios/customerRelationship/workflows/R-CMD-check/badge.svg)](https://github.com/yourusername/customerRelationship/actions)
-
 An R package for efficiently processing customer relationship data to identify and merge consecutive periods with minimal gaps. Built with **Rcpp** for high-performance C++ computing and **data.table** for scalable data manipulation.
 
 ## Overview
 
-In core, calculates the overall customer relationship timeline per customer from many fragmented activity inputs. It is particularly useful for CRMs with fragmented data (e.g., SAP, Salesforce). It transforms smaller fragments of orders/positions into continuous periods where the subject has been active without a day pause in relationship.
+In essense, the package exists in order to calculate the overall customer relationship timeline per customer from many fragmented activity inputs. It is particularly useful for CRMs with fragmented data (e.g., SAP, Salesforce). It transforms smaller fragments of orders/positions into continuous periods where the subject has been active without a day pause in relationship.
 
 ## Use Cases
 
-Perfect for marketing analysts interested in:
-- Overall length of relationships between customers and company
+Suitable for customer analysis:
+- Overall and cumulative length of relationships between customers and company
 - Customer loyalty outcomes of campaigns
 - Customer tenure calculation
 - Churn/survival analysis
@@ -96,7 +94,7 @@ Process customer relationship data and merge consecutive periods with gaps ≤ g
 
 **Parameters:**
 - `data_frame`: A data.frame or data.table with customer relationship records
-- `gap_threshold`: Maximum gap (in days) between periods to merge (default: 1)
+- `gap_threshold`: Maximum gap (in days) between periods to merge. That is, maximum allowed difference between the start date of a period and the end date of the previous period for both periods to be merged into one continuous relationship period. A new period starts only when From - previous To > gap_threshold. (default: 1)
 - `id_column`: Name of the customer ID column (default: "ID")
 - `from_column`: Name of the start date column (default: "From")
 - `to_column`: Name of the end date column (default: "To")
@@ -121,7 +119,7 @@ A data.table with merged periods
 
 ## Algorithm
 
-The package implements a sophisticated period-merging algorithm:
+The package implements a fairly sophisticated period-merging algorithm:
 
 1. **Sorts** records by customer ID and start date
 2. **Iterates** through sorted records, tracking each customer's current period
