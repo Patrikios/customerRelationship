@@ -1,4 +1,34 @@
-expect_matches_legacy <- function(input) {
+timeline_implementations <- list(
+  rcpp = calculate_customer_timeline,
+  base = calculate_customer_timeline_base,
+  data_table = calculate_customer_timeline_data_table
+)
+
+expect_same_timeline <- function(actual, expected, info = NULL) {
+  expect_identical(names(actual), names(expected), info = info)
+
+  for (col in names(expected)) {
+    expect_equal(actual[[col]], expected[[col]], info = paste(info, col))
+  }
+}
+
+expect_all_implementations_match <- function(input, ..., expected = NULL) {
+  if (is.null(expected)) {
+    expected <- calculate_customer_timeline(data.table::copy(input), ..., verbose = FALSE)
+  }
+
+  for (implementation_name in names(timeline_implementations)) {
+    implementation_fun <- timeline_implementations[[implementation_name]]
+    actual <- implementation_fun(data.table::copy(input), ..., verbose = FALSE)
+    expect_same_timeline(
+      actual = actual,
+      expected = expected,
+      info = paste("implementation:", implementation_name)
+    )
+  }
+}
+
+expect_matches_legacy <- function(input, ...) {
   legacy_env <- new.env(parent = globalenv())
   legacy_path <- testthat::test_path("..", "..", "endvers.R")
   if (!file.exists(legacy_path)) {
@@ -9,13 +39,7 @@ expect_matches_legacy <- function(input) {
   legacy_result <- suppressMessages(
     suppressWarnings(legacy_env$CustomerRelationshipTimeline(data.table::copy(input)))
   )
-  package_result <- calculate_customer_timeline(data.table::copy(input), verbose = FALSE)
-
-  expect_identical(names(package_result), names(legacy_result))
-
-  for (col in names(package_result)) {
-    expect_equal(package_result[[col]], legacy_result[[col]])
-  }
+  expect_all_implementations_match(input, ..., expected = legacy_result)
 }
 
 validate_customer_data_internal <- function(...) {
@@ -264,6 +288,43 @@ test_that("calculate_customer_timeline matches legacy endvers.R output", {
   )
 
   expect_matches_legacy(input)
+})
+
+test_that("all implementations match with custom columns and options", {
+  data <- data.table::data.table(
+    CustomerID = c("A", "A", "A", "B"),
+    StartDate = c("2020-01-01", "2020-01-04", "2020-01-08", "2020-02-01"),
+    EndDate = c("2020-01-03", "2020-01-06", "2020-01-09", "2020-02-05"),
+    StatusBeg = c("New", "New", "Existing", "New"),
+    StatusEnd = c("Open", "Open", "Closed", "Open"),
+    TypeBeg = c("Basic", "Basic", "Premium", "Basic"),
+    TypeEnd = c("Basic", "Gold", "Gold", "Basic")
+  )
+
+  expect_all_implementations_match(
+    data,
+    gap_threshold = 2,
+    id_column = "CustomerID",
+    from_column = "StartDate",
+    to_column = "EndDate",
+    characteristic_beg_columns = c("StatusBeg", "TypeBeg"),
+    characteristic_end_columns = c("StatusEnd", "TypeEnd"),
+    keep_all_periods = TRUE,
+    include_gap_column = TRUE
+  )
+})
+
+test_that("all implementations preserve default coercion semantics", {
+  data <- data.table::data.table(
+    ID = c(1L, 1L),
+    From = as.Date(c("2020-01-01", "2020-01-02")),
+    To = as.Date(c("2020-01-01", "2020-01-05")),
+    CharacteristicBeg = c("A", "B"),
+    CharacteristicEnd1 = c(1L, 2L),
+    CharacteristicEnd2 = c(10L, 20L)
+  )
+
+  expect_all_implementations_match(data, keep_all_periods = TRUE)
 })
 
 test_that("calculate_customer_timeline matches legacy endvers.R output on extended fixture", {

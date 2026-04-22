@@ -6,6 +6,15 @@ An R package for efficiently processing customer relationship data to identify a
 
 In essense, the package exists in order to calculate the overall customer relationship timeline per customer from many fragmented activity inputs. It is particularly useful for CRMs with fragmented data (e.g., SAP, Salesforce). It transforms smaller fragments of orders/positions into continuous periods where the subject has been active without a day pause in relationship.
 
+## Benchmarking Branch Note
+
+The `benchmarking` branch extends the package with:
+
+- Benchmark coverage for comparing alternative implementations
+- A pure base R implementation: `calculate_customer_timeline_base()`
+- A pure `data.table` implementation: `calculate_customer_timeline_data_table()`
+- An opt-in benchmark test harness for timing `rcpp`, `base`, and `data.table`
+
 ## Use Cases
 
 Suitable for customer analysis:
@@ -18,6 +27,7 @@ Suitable for customer analysis:
 ## Features
 
 - **High Performance**: C++ implementation via Rcpp for fast period merging
+- **Benchmark Variants**: Pure base R and pure `data.table` alternatives for implementation comparison
 - **Scalable**: Uses data.table for efficient memory management with large datasets
 - **Clean API**: Simple, well-documented functions for customer timeline processing
 - **Validated Input**: Automatic data validation and type coercion
@@ -109,6 +119,14 @@ Process customer relationship data and merge consecutive periods with gaps ≤ g
 **Returns:**
 A data.table with merged periods
 
+### `calculate_customer_timeline_base(data_frame, ...)`
+
+Pure base R implementation of the same timeline logic. This is intended mainly for benchmarking and implementation comparison.
+
+### `calculate_customer_timeline_data_table(data_frame, ...)`
+
+Pure `data.table` implementation of the same timeline logic. This is intended mainly for benchmarking and implementation comparison.
+
 **Output Columns:**
 - ID column (name specified by id_column)
 - From column (name specified by from_column)
@@ -150,6 +168,71 @@ devtools::check()
 devtools::test()
 ```
 
+### Benchmark Testing
+
+The benchmark harness is opt-in. Regular test runs do not execute the timing benchmark unless explicitly enabled.
+
+Standard tests only:
+
+```r
+devtools::test()
+```
+
+Run benchmark tests for all 3 implementations:
+
+```r
+Sys.setenv(RUN_TIMELINE_BENCHMARKS = "true")
+devtools::test()
+```
+
+Run benchmark tests only for `rcpp` and `data.table`:
+
+```r
+Sys.setenv(RUN_TIMELINE_BENCHMARKS = "true")
+Sys.setenv(TIMELINE_BENCHMARK_IMPLEMENTATIONS = "rcpp,data_table")
+devtools::test()
+```
+
+Configure the benchmark dataset and iteration count:
+
+```r
+Sys.setenv(RUN_TIMELINE_BENCHMARKS = "true")
+Sys.setenv(TIMELINE_BENCHMARK_CUSTOMERS = "5000")
+Sys.setenv(TIMELINE_BENCHMARK_PERIODS = "20")
+Sys.setenv(TIMELINE_BENCHMARK_ITERATIONS = "3")
+devtools::test()
+```
+
+The default benchmark setup in this branch uses:
+
+- `5,000` customers
+- `20` periods per customer
+- `100,000` total rows
+- `3` timing iterations per implementation
+
+Run the benchmark script directly without the full test suite:
+
+```r
+Rscript tests/benchmarks/benchmark-timeline.R
+```
+
+Available benchmark environment variables:
+
+- `RUN_TIMELINE_BENCHMARKS`
+- `TIMELINE_BENCHMARK_IMPLEMENTATIONS`
+- `TIMELINE_BENCHMARK_CUSTOMERS`
+- `TIMELINE_BENCHMARK_PERIODS`
+- `TIMELINE_BENCHMARK_ITERATIONS`
+- `TIMELINE_BENCHMARK_GAP_THRESHOLD`
+- `TIMELINE_BENCHMARK_KEEP_ALL_PERIODS`
+- `TIMELINE_BENCHMARK_SEED`
+
+Valid values for `TIMELINE_BENCHMARK_IMPLEMENTATIONS` are:
+
+- `rcpp`
+- `base`
+- `data_table`
+
 ### Building from Source
 
 ```bash
@@ -165,5 +248,4 @@ MIT License - see LICENSE file for details
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
-
 

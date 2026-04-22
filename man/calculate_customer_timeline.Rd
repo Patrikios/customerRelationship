@@ -57,8 +57,9 @@ A data.table with merged periods, including:
 }
 \description{
 Process customer relationship data to identify and merge consecutive periods
-with gaps up to a configurable threshold. Uses Rcpp for efficient C++ processing and
-data.table for scalability.
+with gaps up to a configurable threshold. The default implementation uses
+Rcpp for efficient C++ processing. Benchmark-oriented pure base R and pure
+\code{data.table} variants are also exported with the same interface.
 }
 \details{
 The function performs the following operations:
@@ -67,7 +68,7 @@ The function performs the following operations:
 \item Converts to data.table if necessary
 \item Coerces date columns to Date class
 \item Sorts by ID and From date
-\item Calls the C++ merge function to identify and merge continuous periods
+\item Calls the selected merge implementation to identify and merge continuous periods
 \item Returns one row per merged period, matching the legacy endvers.R output
 \item Selects output columns based on output_columns parameter
 }
