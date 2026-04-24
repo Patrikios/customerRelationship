@@ -19,12 +19,28 @@ That means you can use the same package to answer both "how long has this custom
 
 ## Use Cases
 
-Suitable for customer analysis:
-- Overall and cumulative length of relationships between customers and company
-- Customer loyalty outcomes of campaigns
-- Customer tenure calculation
-- Churn and survival analysis
-- Other relationship-based marketing applications
+The package is best understood as an interval-collapsing engine: it merges overlapping or near-adjacent fragments into continuous periods.
+
+### Date-Based Collapsing
+
+Best when continuity is measured in whole days and the collapsed result represents a relationship span:
+
+- Customer tenure and lifecycle duration
+- Subscription, contract, membership, or account active spans
+- Churn, lapse, and reactivation windows
+- Campaign exposure and loyalty analysis
+- Coverage, entitlement, or status ranges
+
+### Datetime-Based Collapsing
+
+Best when continuity is measured within the day and the collapsed result represents an episode or operational window:
+
+- Session stitching for web, app, or product behavior
+- Call-center, support, or ownership handoff windows
+- SLA coverage and escalation timelines
+- Machine uptime or downtime episodes
+- Logistics, fulfillment, or delivery event windows
+- Same-day pause-and-return behavior
 
 ## Features
 
