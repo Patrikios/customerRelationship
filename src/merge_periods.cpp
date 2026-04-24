@@ -56,7 +56,7 @@ DataFrame merge_relationship_periods(DataFrame dtable,
     if (ID[i] != ID[i-1]) {
       marker = i;
     } else {
-      // Same customer - calculate the legacy difference used by endvers.R
+      // customer - calculate the legacy difference
       Difference[i] = From[i] - To[marker];
 
       // If gap exceeds the allowed threshold, start a new period
