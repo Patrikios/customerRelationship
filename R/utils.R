@@ -35,3 +35,134 @@ safe_copy <- function(dtable) {
     data.table::setDT(data.frame(dtable))
   }
 }
+
+#' Detect whether character-like input contains time information
+#' @noRd
+looks_like_datetime <- function(x) {
+  if (inherits(x, c("Date", "POSIXt"))) {
+    return(inherits(x, "POSIXt"))
+  }
+
+  if (is.factor(x)) {
+    x <- as.character(x)
+  }
+
+  if (!is.character(x)) {
+    return(FALSE)
+  }
+
+  x <- x[!is.na(x) & nzchar(x)]
+  if (!length(x)) {
+    return(FALSE)
+  }
+
+  probe <- utils::head(x, 100L)
+  any(grepl("[T ]\\d{1,2}:\\d{2}", probe) |
+        grepl("Z$", probe) |
+        grepl("[+-]\\d{2}:?\\d{2}$", probe))
+}
+
+#' Decide whether timelines should be processed as dates or datetimes
+#' @noRd
+detect_time_class <- function(from_value, to_value, time_class = c("auto", "date", "datetime")) {
+  time_class <- match.arg(time_class)
+
+  if (time_class != "auto") {
+    return(time_class)
+  }
+
+  if (inherits(from_value, "POSIXt") || inherits(to_value, "POSIXt")) {
+    return("datetime")
+  }
+
+  if (inherits(from_value, "Date") && inherits(to_value, "Date")) {
+    return("date")
+  }
+
+  if (looks_like_datetime(from_value) || looks_like_datetime(to_value)) {
+    return("datetime")
+  }
+
+  "date"
+}
+
+#' Coerce temporal input while preserving the requested granularity
+#' @noRd
+coerce_temporal_column <- function(x, time_class = c("date", "datetime")) {
+  time_class <- match.arg(time_class)
+
+  if (time_class == "datetime") {
+    if (inherits(x, "POSIXct")) {
+      return(x)
+    }
+    if (inherits(x, "POSIXlt")) {
+      return(as.POSIXct(x))
+    }
+    if (inherits(x, "Date")) {
+      return(as.POSIXct(x))
+    }
+    return(anytime::anytime(x))
+  }
+
+  if (inherits(x, "Date")) {
+    return(x)
+  }
+  if (inherits(x, "POSIXt")) {
+    return(as.Date(x))
+  }
+
+  anytime::anydate(x)
+}
+
+#' Convert a user-facing gap threshold into the storage units used internally
+#' @noRd
+normalize_gap_threshold <- function(gap_threshold,
+                                    time_class = c("date", "datetime"),
+                                    gap_units = c("auto", "days", "hours", "mins", "secs")) {
+  time_class <- match.arg(time_class)
+  gap_units <- match.arg(gap_units)
+
+  if (inherits(gap_threshold, "difftime")) {
+    target_units <- if (time_class == "datetime") "secs" else "days"
+    return(as.numeric(gap_threshold, units = target_units))
+  }
+
+  if (!is.numeric(gap_threshold) || length(gap_threshold) != 1L ||
+      is.na(gap_threshold) || gap_threshold < 0) {
+    stop(
+      "gap_threshold must be a single non-negative number or difftime",
+      call. = FALSE
+    )
+  }
+
+  if (gap_units == "auto") {
+    gap_units <- "days"
+  }
+
+  gap_value <- as.numeric(gap_threshold)
+  seconds_value <- switch(
+    gap_units,
+    days = gap_value * 86400,
+    hours = gap_value * 3600,
+    mins = gap_value * 60,
+    secs = gap_value
+  )
+
+  if (time_class == "datetime") {
+    return(seconds_value)
+  }
+
+  seconds_value / 86400
+}
+
+#' Restore a user-friendly gap column after numeric processing
+#' @noRd
+restore_gap_difference <- function(x, time_class = c("date", "datetime")) {
+  time_class <- match.arg(time_class)
+
+  if (time_class == "datetime") {
+    return(structure(as.numeric(x), class = "difftime", units = "secs"))
+  }
+
+  as.integer(x)
+}

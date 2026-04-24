@@ -7,9 +7,11 @@
 calculate_customer_timeline(
   data_frame,
   gap_threshold = 1,
+  gap_units = "auto",
   id_column = "ID",
   from_column = "From",
   to_column = "To",
+  time_class = c("auto", "date", "datetime"),
   characteristic_beg_columns = "CharacteristicBeg",
   characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
   keep_all_periods = FALSE,
@@ -22,13 +24,22 @@ calculate_customer_timeline(
 \arguments{
 \item{data_frame}{A data.frame or data.table containing customer relationship data}
 
-\item{gap_threshold}{Integer. Maximum gap (in days) between periods to merge (default: 1)}
+\item{gap_threshold}{Numeric or difftime. Maximum gap between periods to merge
+(default: 1 day)}
+
+\item{gap_units}{Character string. Units for numeric gap_threshold values. One of
+"auto", "days", "hours", "mins", or "secs". "auto" preserves the legacy
+day-based interpretation (default: "auto")}
 
 \item{id_column}{Character string. Name of the customer ID column (default: "ID")}
 
 \item{from_column}{Character string. Name of the start date column (default: "From")}
 
 \item{to_column}{Character string. Name of the end date column (default: "To")}
+
+\item{time_class}{Character string. One of "auto", "date", or "datetime".
+Use "datetime" to preserve intra-day resolution for POSIXct-style inputs
+(default: "auto")}
 
 \item{characteristic_beg_columns}{Character vector. Column names that should preserve beginning values (default: "CharacteristicBeg")}
 
@@ -52,7 +63,7 @@ A data.table with merged periods, including:
 \item To column (name specified by to_column)
 \item Beginning characteristic columns (preserve first period values)
 \item Ending characteristic columns (take last period values)
-\item Difference: Gap (in days) to previous period (only when keep_all_periods = TRUE and include_gap_column = TRUE)
+\item Difference: Gap to previous period, returned in days for Date timelines and as difftime seconds for datetime timelines (only when keep_all_periods = TRUE and include_gap_column = TRUE)
 }
 }
 \description{
@@ -65,7 +76,8 @@ The function performs the following operations:
 \enumerate{
 \item Validates input data structure
 \item Converts to data.table if necessary
-\item Coerces date columns to Date class
+\item Detects whether the timeline should be handled as Date or datetime data
+\item Coerces the temporal columns while preserving the requested granularity
 \item Sorts by ID and From date
 \item Calls the C++ merge function to identify and merge continuous periods
 \item Returns one row per merged period, matching the legacy endvers.R output
@@ -107,6 +119,29 @@ timeline2 <- calculate_customer_timeline(data2,
                                         characteristic_beg_columns = c("StatusBeg", "TypeBeg"),
                                         characteristic_end_columns = c("StatusEnd", "TypeEnd"))
 print(timeline2)
+
+# Datetime workflow with a 30-minute continuity window
+events <- data.table::data.table(
+  ID = c("CUS001", "CUS001", "CUS001"),
+  From = as.POSIXct(
+    c("2020-01-01 10:00:00", "2020-01-01 10:45:00", "2020-01-01 12:00:00"),
+    tz = "UTC"
+  ),
+  To = as.POSIXct(
+    c("2020-01-01 10:30:00", "2020-01-01 11:00:00", "2020-01-01 12:30:00"),
+    tz = "UTC"
+  ),
+  CharacteristicBeg = c("Active", "Active", "Active"),
+  CharacteristicEnd1 = c("Checkout", "Checkout", "Support"),
+  CharacteristicEnd2 = c("Web", "Web", "Phone")
+)
+
+session_timeline <- calculate_customer_timeline(
+  events,
+  gap_threshold = 30,
+  gap_units = "mins"
+)
+print(session_timeline)
 
 # Select specific output columns
 timeline3 <- calculate_customer_timeline(data2,

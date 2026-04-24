@@ -5,7 +5,7 @@
 #'
 #' C++ implementation for merging consecutive customer relationship periods.
 #' Groups records by customer ID and merges consecutive periods if the gap
-#' between them is 1 day or less.
+#' between them stays within the configured threshold.
 #'
 #' @param dtable A DataFrame with customer relationship records
 #' @param id_column Name of the ID column

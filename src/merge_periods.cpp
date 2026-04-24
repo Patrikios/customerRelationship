@@ -5,7 +5,7 @@ using namespace Rcpp;
 //'
 //' C++ implementation for merging consecutive customer relationship periods.
 //' Groups records by customer ID and merges consecutive periods if the gap
-//' between them is 1 day or less.
+//' between them stays within the configured threshold.
 //'
 //' @param dtable A DataFrame with customer relationship records
 //' @param id_column Name of the ID column
@@ -25,16 +25,16 @@ DataFrame merge_relationship_periods(DataFrame dtable,
                                    std::string to_column,
                                    CharacterVector characteristic_beg_columns,
                                    CharacterVector characteristic_end_columns,
-                                   int gap_threshold,
+                                   double gap_threshold,
                                    bool keep_all_periods) {
   (void) keep_all_periods;
   int marker = 0;
 
-  CharacterVector ID = dtable[id_column];
-  DateVector From = dtable[from_column];
-  DateVector To = dtable[to_column];
+  CharacterVector ID = as<CharacterVector>(dtable[id_column]);
+  NumericVector From = clone(as<NumericVector>(dtable[from_column]));
+  NumericVector To = clone(as<NumericVector>(dtable[to_column]));
 
-  IntegerVector Difference(ID.size(), NA_INTEGER);
+  NumericVector Difference(ID.size(), NA_REAL);
 
   // Create vectors for all characteristic columns
   std::vector<CharacterVector> beg_chars;

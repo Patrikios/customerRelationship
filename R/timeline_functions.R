@@ -38,10 +38,17 @@ validate_customer_data <- function(data_frame,
 #' data.table for scalability.
 #'
 #' @param data_frame A data.frame or data.table containing customer relationship data
-#' @param gap_threshold Integer. Maximum gap (in days) between periods to merge (default: 1)
+#' @param gap_threshold Numeric or difftime. Maximum gap between periods to merge
+#'   (default: 1 day)
+#' @param gap_units Character string. Units for numeric gap_threshold values. One of
+#'   "auto", "days", "hours", "mins", or "secs". "auto" preserves the legacy
+#'   day-based interpretation (default: "auto")
 #' @param id_column Character string. Name of the customer ID column (default: "ID")
 #' @param from_column Character string. Name of the start date column (default: "From")
 #' @param to_column Character string. Name of the end date column (default: "To")
+#' @param time_class Character string. One of "auto", "date", or "datetime".
+#'   Use "datetime" to preserve intra-day resolution for POSIXct-style inputs
+#'   (default: "auto")
 #' @param characteristic_beg_columns Character vector. Column names that should preserve beginning values (default: "CharacteristicBeg")
 #' @param characteristic_end_columns Character vector. Column names that should take ending values (default: c("CharacteristicEnd1", "CharacteristicEnd2"))
 #' @param keep_all_periods Logical. If TRUE, keep the internal gap diagnostics in the returned merged periods (default: FALSE)
@@ -56,17 +63,20 @@ validate_customer_data <- function(data_frame,
 #'   - To column (name specified by to_column)
 #'   - Beginning characteristic columns (preserve first period values)
 #'   - Ending characteristic columns (take last period values)
-#'   - Difference: Gap (in days) to previous period (only when keep_all_periods = TRUE and include_gap_column = TRUE)
+#'   - Difference: Gap to previous period, returned in days for Date timelines and
+#'     as difftime seconds for datetime timelines (only when keep_all_periods = TRUE
+#'     and include_gap_column = TRUE)
 #'
 #' @details
 #' The function performs the following operations:
 #' 1. Validates input data structure
 #' 2. Converts to data.table if necessary
-#' 3. Coerces date columns to Date class
-#' 4. Sorts by ID and From date
-#' 5. Calls the C++ merge function to identify and merge continuous periods
-#' 6. Returns one row per merged period, matching the legacy endvers.R output
-#' 7. Selects output columns based on output_columns parameter
+#' 3. Detects whether the timeline should be handled as Date or datetime data
+#' 4. Coerces the temporal columns while preserving the requested granularity
+#' 5. Sorts by ID and From date
+#' 6. Calls the C++ merge function to identify and merge continuous periods
+#' 7. Returns one row per merged period, matching the legacy endvers.R output
+#' 8. Selects output columns based on output_columns parameter
 #'
 #' Processing time is printed to console upon completion when verbose = TRUE.
 #'
@@ -104,6 +114,29 @@ validate_customer_data <- function(data_frame,
 #'                                         characteristic_end_columns = c("StatusEnd", "TypeEnd"))
 #' print(timeline2)
 #'
+#' # Datetime workflow with a 30-minute continuity window
+#' events <- data.table::data.table(
+#'   ID = c("CUS001", "CUS001", "CUS001"),
+#'   From = as.POSIXct(
+#'     c("2020-01-01 10:00:00", "2020-01-01 10:45:00", "2020-01-01 12:00:00"),
+#'     tz = "UTC"
+#'   ),
+#'   To = as.POSIXct(
+#'     c("2020-01-01 10:30:00", "2020-01-01 11:00:00", "2020-01-01 12:30:00"),
+#'     tz = "UTC"
+#'   ),
+#'   CharacteristicBeg = c("Active", "Active", "Active"),
+#'   CharacteristicEnd1 = c("Checkout", "Checkout", "Support"),
+#'   CharacteristicEnd2 = c("Web", "Web", "Phone")
+#' )
+#'
+#' session_timeline <- calculate_customer_timeline(
+#'   events,
+#'   gap_threshold = 30,
+#'   gap_units = "mins"
+#' )
+#' print(session_timeline)
+#'
 #' # Select specific output columns
 #' timeline3 <- calculate_customer_timeline(data2,
 #'                                         id_column = "CustomerID",
@@ -120,9 +153,11 @@ validate_customer_data <- function(data_frame,
 #' @export
 calculate_customer_timeline <- function(data_frame,
                                       gap_threshold = 1,
+                                      gap_units = "auto",
                                       id_column = "ID",
                                       from_column = "From",
                                       to_column = "To",
+                                      time_class = c("auto", "date", "datetime"),
                                       characteristic_beg_columns = "CharacteristicBeg",
                                       characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
                                       keep_all_periods = FALSE,
@@ -135,12 +170,12 @@ calculate_customer_timeline <- function(data_frame,
   validate_customer_data(data_frame, id_column, from_column, to_column,
                         characteristic_beg_columns, characteristic_end_columns)
 
-  if (!is.numeric(gap_threshold) || length(gap_threshold) != 1L ||
-      is.na(gap_threshold) || gap_threshold < 0) {
-    stop("gap_threshold must be a single non-negative number", call. = FALSE)
-  }
-
-  gap_threshold <- as.integer(gap_threshold)
+  time_class <- detect_time_class(
+    data_frame[[from_column]],
+    data_frame[[to_column]],
+    time_class
+  )
+  gap_threshold_value <- normalize_gap_threshold(gap_threshold, time_class, gap_units)
 
   # Start timing
   start_time <- Sys.time()
@@ -161,12 +196,13 @@ calculate_customer_timeline <- function(data_frame,
     dtable <- data.table::copy(dtable)
   }
 
-  # Coerce date columns to Date class
+  # Coerce temporal columns while preserving date vs datetime behavior
   for (col in c(from_column, to_column)) {
-    if (!inherits(dtable[[col]], "Date")) {
-      data.table::set(dtable, j = col,
-                      value = anytime::anydate(dtable[[col]]))
-    }
+    data.table::set(
+      dtable,
+      j = col,
+      value = coerce_temporal_column(dtable[[col]], time_class)
+    )
   }
 
   # Sort by ID and From date
@@ -176,10 +212,10 @@ calculate_customer_timeline <- function(data_frame,
   merged_dt <- data.table::as.data.table(
     merge_relationship_periods(dtable, id_column, from_column, to_column,
                               characteristic_beg_columns, characteristic_end_columns,
-                              gap_threshold, keep_all_periods)
+                              gap_threshold_value, keep_all_periods)
   )
 
-  period_start <- is.na(merged_dt$Difference) | merged_dt$Difference > gap_threshold
+  period_start <- is.na(merged_dt$Difference) | merged_dt$Difference > gap_threshold_value
 
   # Filter results based on keep_all_periods
   if (keep_all_periods) {
@@ -191,6 +227,8 @@ calculate_customer_timeline <- function(data_frame,
   # Handle gap column inclusion
   if (!keep_all_periods || !include_gap_column) {
     result[, Difference := NULL]
+  } else {
+    result[, Difference := restore_gap_difference(Difference, time_class)]
   }
 
   # Select output columns if specified

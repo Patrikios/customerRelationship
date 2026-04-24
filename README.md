@@ -4,7 +4,18 @@ An R package for efficiently processing customer relationship data to identify a
 
 ## Overview
 
-In essense, the package exists in order to calculate the overall customer relationship timeline per customer from many fragmented activity inputs. It is particularly useful for CRMs with fragmented data (e.g., SAP, Salesforce). It transforms smaller fragments of orders/positions into continuous periods where the subject has been active without a day pause in relationship.
+In essence, the package exists to calculate the overall customer relationship timeline per customer from many fragmented activity inputs. It is particularly useful for CRMs with fragmented data such as SAP or Salesforce. It transforms smaller fragments of orders or positions into continuous periods where the subject has been active without a meaningful pause in relationship.
+
+## Choose Your Time Granularity
+
+The package now supports two related timeline styles:
+
+| Input type | Best for | Continuity rule | Example threshold |
+| --- | --- | --- | --- |
+| `Date` | tenure, churn, lifecycle, campaign attribution | treat gaps in whole days | `gap_threshold = 1` |
+| `POSIXct` | sessions, handoffs, SLA windows, intraday journeys | treat gaps in seconds, minutes, or hours | `gap_threshold = 30, gap_units = "mins"` |
+
+That means you can use the same package to answer both "how long has this customer been active overall?" and "which events belong to the same session or operational window?"
 
 ## Use Cases
 
@@ -12,7 +23,7 @@ Suitable for customer analysis:
 - Overall and cumulative length of relationships between customers and company
 - Customer loyalty outcomes of campaigns
 - Customer tenure calculation
-- Churn/survival analysis
+- Churn and survival analysis
 - Other relationship-based marketing applications
 
 ## Features
@@ -21,6 +32,7 @@ Suitable for customer analysis:
 - **Scalable**: Uses data.table for efficient memory management with large datasets
 - **Clean API**: Simple, well-documented functions for customer timeline processing
 - **Validated Input**: Automatic data validation and type coercion
+- **Flexible Time Granularity**: Handles both day-level `Date` ranges and intra-day `POSIXct` timelines
 - **Informative**: Execution timing information and record counts in output
 
 ## Installation
@@ -69,65 +81,111 @@ data2 <- data.table(
   CustomerID = c("A", "A", "B"),
   StartDate = c("2020-01-01", "2020-01-02", "2020-02-01"),
   EndDate = c("2020-01-01", "2020-01-03", "2020-02-05"),
-  StatusBeg = c("New", "New", "Returning"),    # Beginning status
-  StatusEnd = c("Active", "Active", "Active"), # Ending status
-  TypeBeg = c("Basic", "Basic", "Premium"),    # Beginning type
-  TypeEnd = c("Basic", "Premium", "Gold")      # Ending type
+  StatusBeg = c("New", "New", "Returning"),
+  StatusEnd = c("Active", "Active", "Active"),
+  TypeBeg = c("Basic", "Basic", "Premium"),
+  TypeEnd = c("Basic", "Premium", "Gold")
 )
 
 timeline2 <- calculate_customer_timeline(
   data2,
   id_column = "CustomerID",
-  from_column = "StartDate", 
+  from_column = "StartDate",
   to_column = "EndDate",
   characteristic_beg_columns = c("StatusBeg", "TypeBeg"),
   characteristic_end_columns = c("StatusEnd", "TypeEnd")
 )
 print(timeline2)
+
+# Datetime timelining with a 30-minute continuity window
+events <- data.table(
+  ID = c("CUS001", "CUS001", "CUS001"),
+  From = as.POSIXct(
+    c("2020-01-01 10:00:00", "2020-01-01 10:45:00", "2020-01-01 12:00:00"),
+    tz = "UTC"
+  ),
+  To = as.POSIXct(
+    c("2020-01-01 10:30:00", "2020-01-01 11:00:00", "2020-01-01 12:30:00"),
+    tz = "UTC"
+  ),
+  CharacteristicBeg = c("Active", "Active", "Active"),
+  CharacteristicEnd1 = c("Checkout", "Checkout", "Support"),
+  CharacteristicEnd2 = c("Web", "Web", "Phone")
+)
+
+session_timeline <- calculate_customer_timeline(
+  events,
+  gap_threshold = 30,
+  gap_units = "mins"
+)
+print(session_timeline)
 ```
 
 ## Function Reference
 
 ### `calculate_customer_timeline(data_frame, ...)`
 
-Process customer relationship data and merge consecutive periods with gaps ≤ gap_threshold.
+Process customer relationship data and merge consecutive periods with gaps <= `gap_threshold`.
 
 **Parameters:**
 - `data_frame`: A data.frame or data.table with customer relationship records
-- `gap_threshold`: Maximum gap (in days) between periods to merge. That is, maximum allowed difference between the start date of a period and the end date of the previous period for both periods to be merged into one continuous relationship period. A new period starts only when From - previous To > gap_threshold. (default: 1)
-- `id_column`: Name of the customer ID column (default: "ID")
-- `from_column`: Name of the start date column (default: "From")
-- `to_column`: Name of the end date column (default: "To")
-- `characteristic_beg_columns`: Column names that should preserve beginning values (default: "CharacteristicBeg")
-- `characteristic_end_columns`: Column names that should take ending values (default: c("CharacteristicEnd1", "CharacteristicEnd2"))
+- `gap_threshold`: Maximum gap between periods to merge. Numeric values are interpreted as days by default, preserving the legacy API. For datetime workflows you can also pass `difftime` values or combine numeric thresholds with `gap_units`. A new period starts only when `From - previous To > gap_threshold`. (default: 1 day)
+- `gap_units`: Units for numeric `gap_threshold` values. One of `"auto"`, `"days"`, `"hours"`, `"mins"`, or `"secs"` (default: `"auto"`)
+- `id_column`: Name of the customer ID column (default: `"ID"`)
+- `from_column`: Name of the start date column (default: `"From"`)
+- `to_column`: Name of the end date column (default: `"To"`)
+- `time_class`: One of `"auto"`, `"date"`, or `"datetime"` to control whether the package preserves daily or intra-day granularity (default: `"auto"`)
+- `characteristic_beg_columns`: Column names that should preserve beginning values (default: `"CharacteristicBeg"`)
+- `characteristic_end_columns`: Column names that should take ending values (default: `c("CharacteristicEnd1", "CharacteristicEnd2")`)
 - `keep_all_periods`: If TRUE, keep the internal gap diagnostics in the returned merged periods (default: FALSE)
 - `verbose`: If TRUE, print processing time and result summary (default: TRUE)
 - `output_columns`: Columns to include in output. If NULL, includes all relevant columns (default: NULL)
-- `include_gap_column`: If TRUE and keep_all_periods is TRUE, include the Difference column (default: TRUE)
-- `copy_data`: If TRUE, work on a copy of the input data, if not works on the data.frame directly without copying it (default: TRUE)
+- `include_gap_column`: If TRUE and `keep_all_periods` is TRUE, include the `Difference` column (default: TRUE)
+- `copy_data`: If TRUE, work on a copy of the input data; if FALSE, work on the input object directly without copying it (default: TRUE)
 
 **Returns:**
 A data.table with merged periods
 
 **Output Columns:**
-- ID column (name specified by id_column)
-- From column (name specified by from_column)
-- To column (name specified by to_column)
+- ID column (name specified by `id_column`)
+- From column (name specified by `from_column`)
+- To column (name specified by `to_column`)
 - Beginning characteristic columns (preserve first period values)
 - Ending characteristic columns (take last period values)
-- Difference: Gap in days to previous period (only when keep_all_periods = TRUE and include_gap_column = TRUE)
+- Difference: Gap to previous period. Returned in days for `Date` timelines and as `difftime` seconds for datetime timelines when `keep_all_periods = TRUE` and `include_gap_column = TRUE`
+
+## Merge Semantics
+
+The continuity rule is simple:
+
+- A new period starts only when `From - previous To > gap_threshold`
+- Overlapping periods merge automatically
+- Back-to-back periods merge when the gap is within the threshold
+- The first period keeps beginning characteristics, while the last merged fragment contributes ending characteristics
 
 ## Algorithm
 
-The package implements a fairly sophisticated period-merging algorithm:
+The package implements a period-merging algorithm:
 
-1. **Sorts** records by customer ID and start date
-2. **Iterates** through sorted records, tracking each customer's current period
-3. **Calculates** the gap (in days) between consecutive periods for the same customer
+1. **Sorts** records by customer ID and start time
+2. **Iterates** through sorted records, tracking each customer's current merged period
+3. **Calculates** the gap between consecutive periods for the same customer
 4. **Merges** periods if the gap is less than or equal to `gap_threshold` by:
-   - Extending the current period's end date
-   - Updating characteristics to the later period's values
+   - Extending the current period's end
+   - Updating ending characteristics to the later period's values
 5. **Returns** one row per merged period, with optional gap diagnostics when `keep_all_periods = TRUE`
+
+## Timelining Ideas
+
+The package started as a daily relationship engine, but it becomes much richer when you preserve time-of-day:
+
+- **Daily tenure timelines**: the original CRM use case where continuity means "no break of more than 1 day"
+- **Session stitching**: merge browsing, app, or call-center activity windows separated by only a few minutes
+- **Same-day reactivation**: distinguish a return within 2 hours from a return next week
+- **SLA coverage**: track support ownership, escalation windows, or response continuity inside one business day
+- **Stateful journeys**: compress event logs into phases like onboarding, active use, pause, and reactivation
+
+That gives the package two complementary modes: `Date` for lifecycle and tenure questions, and `POSIXct` for true timeline reconstruction.
 
 ## Performance
 
@@ -137,7 +195,7 @@ The package implements a fairly sophisticated period-merging algorithm:
 
 ## Development
 
-### Building the Package
+### Building The Package
 
 ```r
 # Generate documentation from roxygen comments
@@ -150,7 +208,7 @@ devtools::check()
 devtools::test()
 ```
 
-### Building from Source
+### Building From Source
 
 ```bash
 # Windows/macOS/Linux
@@ -164,6 +222,4 @@ MIT License - see LICENSE file for details
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request.
-
-
+Contributions are welcome. Please open an issue or submit a pull request.

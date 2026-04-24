@@ -143,6 +143,62 @@ test_that("calculate_customer_timeline coerces string dates", {
   expect_true(inherits(result$To, "Date"))
 })
 
+test_that("calculate_customer_timeline preserves POSIXct timelines", {
+  data <- data.table::data.table(
+    ID = c("A", "A", "A"),
+    From = as.POSIXct(
+      c("2020-01-01 10:00:00", "2020-01-01 10:45:00", "2020-01-01 12:00:00"),
+      tz = "UTC"
+    ),
+    To = as.POSIXct(
+      c("2020-01-01 10:30:00", "2020-01-01 11:00:00", "2020-01-01 12:30:00"),
+      tz = "UTC"
+    ),
+    CharacteristicBeg = c("X", "X", "X"),
+    CharacteristicEnd1 = c("1", "1", "1"),
+    CharacteristicEnd2 = c("Alpha", "Beta", "Gamma")
+  )
+
+  result <- calculate_customer_timeline(
+    data,
+    gap_threshold = 30,
+    gap_units = "mins",
+    keep_all_periods = TRUE,
+    verbose = FALSE
+  )
+
+  expect_equal(nrow(result), 2)
+  expect_true(inherits(result$From, "POSIXct"))
+  expect_true(inherits(result$To, "POSIXct"))
+  expect_equal(result$From[1], as.POSIXct("2020-01-01 10:00:00", tz = "UTC"))
+  expect_equal(result$To[1], as.POSIXct("2020-01-01 11:00:00", tz = "UTC"))
+  expect_equal(result$CharacteristicEnd2[1], "Beta")
+  expect_true(inherits(result$Difference, "difftime"))
+  expect_equal(as.numeric(result$Difference[2], units = "secs"), 3600)
+})
+
+test_that("calculate_customer_timeline auto-detects character datetimes", {
+  data <- data.table::data.table(
+    ID = c("A", "A"),
+    From = c("2020-01-01 10:00:00", "2020-01-01 10:20:00"),
+    To = c("2020-01-01 10:10:00", "2020-01-01 10:40:00"),
+    CharacteristicBeg = c("X", "X"),
+    CharacteristicEnd1 = c("1", "1"),
+    CharacteristicEnd2 = c("Alpha", "Beta")
+  )
+
+  result <- calculate_customer_timeline(
+    data,
+    gap_threshold = as.difftime(15, units = "mins"),
+    verbose = FALSE
+  )
+
+  expect_equal(nrow(result), 1)
+  expect_true(inherits(result$From, "POSIXct"))
+  expect_true(inherits(result$To, "POSIXct"))
+  expect_equal(result$CharacteristicEnd2, "Beta")
+})
+
 test_that("calculate_customer_timeline does not mutate data.frame input when copy_data is TRUE", {
   data <- data.frame(
     ID = c("A", "A"),
