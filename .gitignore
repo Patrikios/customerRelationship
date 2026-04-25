@@ -2,10 +2,11 @@
 .RData
 .Ruserdata
 .DS_Store
+.devcontainer/
+.vscode/
 *.o
 *.so
 *.dll
 src/*.o
 src/*.so
 src/*.dll
-.Rbuildignore
