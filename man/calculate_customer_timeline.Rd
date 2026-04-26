@@ -45,7 +45,7 @@ Use "datetime" to preserve intra-day resolution for POSIXct-style inputs
 
 \item{characteristic_end_columns}{Character vector. Column names that should take ending values (default: c("CharacteristicEnd1", "CharacteristicEnd2"))}
 
-\item{keep_all_periods}{Logical. If TRUE, keep the internal gap diagnostics in the returned merged periods (default: FALSE)}
+\item{keep_all_periods}{Logical. If TRUE, keep the raw internal rows with gap diagnostics for debugging, including a period_start column that marks rows included in the normal merged-period output (default: FALSE)}
 
 \item{verbose}{Logical. If TRUE, print processing time and result summary (default: TRUE)}
 
@@ -63,7 +63,8 @@ A data.table with merged periods, including:
 \item To column (name specified by to_column)
 \item Beginning characteristic columns (preserve first period values)
 \item Ending characteristic columns (take last period values)
-\item Difference: Gap to previous period, returned in days for Date timelines and as difftime seconds for datetime timelines (only when keep_all_periods = TRUE and include_gap_column = TRUE)
+\item Difference: Gap to the active merge period, returned in days for Date timelines and as difftime seconds for datetime timelines (only when keep_all_periods = TRUE and include_gap_column = TRUE)
+\item period_start: Logical flag returned when keep_all_periods = TRUE. TRUE marks rows that start a merged period and would be kept in normal output; FALSE marks internal rows that were merged into an active period.
 }
 }
 \description{

@@ -153,7 +153,7 @@ Process customer relationship data and merge consecutive periods with gaps <= `g
 - `time_class`: One of `"auto"`, `"date"`, or `"datetime"` to control whether the package preserves daily or intra-day granularity (default: `"auto"`)
 - `characteristic_beg_columns`: Column names that should preserve beginning values (default: `"CharacteristicBeg"`)
 - `characteristic_end_columns`: Column names that should take ending values (default: `c("CharacteristicEnd1", "CharacteristicEnd2")`)
-- `keep_all_periods`: If TRUE, keep the internal gap diagnostics in the returned merged periods (default: FALSE)
+- `keep_all_periods`: If TRUE, keep the raw internal rows with gap diagnostics for debugging, including a `period_start` column that marks which rows are included in the normal merged-period output (default: FALSE)
 - `verbose`: If TRUE, print processing time and result summary (default: TRUE)
 - `output_columns`: Columns to include in output. If NULL, includes all relevant columns (default: NULL)
 - `include_gap_column`: If TRUE and `keep_all_periods` is TRUE, include the `Difference` column (default: TRUE)
@@ -168,13 +168,40 @@ A data.table with merged periods
 - To column (name specified by `to_column`)
 - Beginning characteristic columns (preserve first period values)
 - Ending characteristic columns (take last period values)
-- Difference: Gap to previous period. Returned in days for `Date` timelines and as `difftime` seconds for datetime timelines when `keep_all_periods = TRUE` and `include_gap_column = TRUE`
+- Difference: Gap between the current row's start and the end of the active merged period. Returned in days for `Date` timelines and as `difftime` seconds for datetime timelines when `keep_all_periods = TRUE` and `include_gap_column = TRUE`
+- period_start: Logical flag returned when `keep_all_periods = TRUE`. `TRUE` marks rows that start a merged period and would be kept in normal output; `FALSE` marks internal rows that were merged into an active period.
+
+**Difference Column:**
+`Difference` is a debugging diagnostic that shows how the merge decision was made for each raw row. Internally, the algorithm tracks the first row of the active merged period and extends that period's end whenever another row merges into it. For each later row in the same customer group, `Difference` is calculated as:
+
+```r
+current From - active merged period To
+```
+
+For example, with `gap_threshold = 1`:
+
+| ID | From | To |
+| --- | --- | --- |
+| CUS001 | 2020-01-01 | 2020-01-01 |
+| CUS001 | 2020-01-02 | 2020-01-03 |
+| CUS001 | 2020-02-01 | 2020-02-05 |
+
+The raw debug output includes:
+
+| ID | From | To | Difference | period_start | Meaning |
+| --- | --- | --- | --- | --- | --- |
+| CUS001 | 2020-01-01 | 2020-01-03 | `NA` | `TRUE` | First row for this customer; starts the active merged period |
+| CUS001 | 2020-01-02 | 2020-01-03 | `1` | `FALSE` | `2020-01-02 - 2020-01-01 = 1`, so this row merges and extends the active period to `2020-01-03` |
+| CUS001 | 2020-02-01 | 2020-02-05 | `29` | `TRUE` | `2020-02-01 - 2020-01-03 = 29`, so this row starts a new merged period |
+
+The first row for each customer has `Difference = NA` because there is no active period before it.
+To recreate the normal merged-period output from raw debug rows, filter to `period_start == TRUE`.
 
 ## Merge Semantics
 
 The continuity rule is simple:
 
-- A new period starts only when `From - previous To > gap_threshold`
+- A new period starts only when `From - active merged period To > gap_threshold`
 - Overlapping periods merge automatically
 - Back-to-back periods merge when the gap is within the threshold
 - The first period keeps beginning characteristics, while the last merged fragment contributes ending characteristics
@@ -185,7 +212,7 @@ The package implements a period-merging algorithm:
 
 1. **Sorts** records by customer ID and start time
 2. **Iterates** through sorted records, tracking each customer's current merged period
-3. **Calculates** the gap between consecutive periods for the same customer
+3. **Calculates** the gap between the current row and the active merged period for the same customer
 4. **Merges** periods if the gap is less than or equal to `gap_threshold` by:
    - Extending the current period's end
    - Updating ending characteristics to the later period's values

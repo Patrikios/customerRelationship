@@ -167,14 +167,15 @@ test_that("calculate_customer_timeline preserves POSIXct timelines", {
     verbose = FALSE
   )
 
-  expect_equal(nrow(result), 2)
+  expect_equal(nrow(result), 3)
   expect_true(inherits(result$From, "POSIXct"))
   expect_true(inherits(result$To, "POSIXct"))
   expect_equal(result$From[1], as.POSIXct("2020-01-01 10:00:00", tz = "UTC"))
   expect_equal(result$To[1], as.POSIXct("2020-01-01 11:00:00", tz = "UTC"))
   expect_equal(result$CharacteristicEnd2[1], "Beta")
   expect_true(inherits(result$Difference, "difftime"))
-  expect_equal(as.numeric(result$Difference[2], units = "secs"), 3600)
+  expect_equal(as.numeric(result$Difference[2], units = "secs"), 900)
+  expect_equal(as.numeric(result$Difference[3], units = "secs"), 3600)
 })
 
 test_that("calculate_customer_timeline auto-detects character datetimes", {
@@ -229,7 +230,7 @@ test_that("calculate_customer_timeline preserves beginning characteristics", {
     CharacteristicEnd2 = c("Cat_A", "Cat_B")   # Should take "Cat_B"
   )
 
-  result <- calculate_customer_timeline(data, keep_all_periods = TRUE, verbose = FALSE)
+  result <- calculate_customer_timeline(data, verbose = FALSE)
 
   # Should have 1 result (merged period)
   expect_equal(nrow(result), 1)
@@ -287,12 +288,12 @@ test_that("calculate_customer_timeline respects gap_threshold", {
 
 test_that("calculate_customer_timeline keep_all_periods parameter works", {
   data <- data.table::data.table(
-    ID = c("A", "A"),
-    From = as.Date(c("2020-01-01", "2020-01-05")),
-    To = as.Date(c("2020-01-03", "2020-01-10")),
-    CharacteristicBeg = c("X", "X"),
-    CharacteristicEnd1 = c("1", "1"),
-    CharacteristicEnd2 = c("Alpha", "Beta")
+    ID = c("A", "A", "A"),
+    From = as.Date(c("2020-01-01", "2020-01-02", "2020-01-10")),
+    To = as.Date(c("2020-01-01", "2020-01-03", "2020-01-12")),
+    CharacteristicBeg = c("X", "X", "X"),
+    CharacteristicEnd1 = c("1", "1", "2"),
+    CharacteristicEnd2 = c("Alpha", "Beta", "Gamma")
   )
 
   # keep_all_periods = FALSE (default)
@@ -303,8 +304,20 @@ test_that("calculate_customer_timeline keep_all_periods parameter works", {
   # keep_all_periods = TRUE
   result_all <- calculate_customer_timeline(data, keep_all_periods = TRUE, verbose = FALSE)
   expect_true("Difference" %in% names(result_all))
-  expect_equal(nrow(result_all), 2)
-  expect_equal(result_all[2, Difference], 2)  # Gap between periods
+  expect_true("period_start" %in% names(result_all))
+  expect_equal(nrow(result_all), 3)
+  expect_equal(result_all[, Difference], c(NA_integer_, 1L, 7L))
+  expect_equal(result_all[, period_start], c(TRUE, FALSE, TRUE))
+
+  result_selected <- calculate_customer_timeline(
+    data,
+    keep_all_periods = TRUE,
+    include_gap_column = FALSE,
+    output_columns = c("ID", "From", "period_start"),
+    verbose = FALSE
+  )
+  expect_named(result_selected, c("ID", "From", "period_start"))
+  expect_equal(result_selected[, period_start], c(TRUE, FALSE, TRUE))
 })
 
 test_that("calculate_customer_timeline matches legacy endvers.R output", {

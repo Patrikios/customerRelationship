@@ -51,7 +51,9 @@ validate_customer_data <- function(data_frame,
 #'   (default: "auto")
 #' @param characteristic_beg_columns Character vector. Column names that should preserve beginning values (default: "CharacteristicBeg")
 #' @param characteristic_end_columns Character vector. Column names that should take ending values (default: c("CharacteristicEnd1", "CharacteristicEnd2"))
-#' @param keep_all_periods Logical. If TRUE, keep the internal gap diagnostics in the returned merged periods (default: FALSE)
+#' @param keep_all_periods Logical. If TRUE, keep the raw internal rows with
+#'   gap diagnostics for debugging, including a period_start column that marks
+#'   rows included in the normal merged-period output (default: FALSE)
 #' @param verbose Logical. If TRUE, print processing time and result summary (default: TRUE)
 #' @param output_columns Character vector. Columns to include in output. If NULL, includes all relevant columns (default: NULL)
 #' @param include_gap_column Logical. If TRUE and keep_all_periods is TRUE, include the Difference column showing gaps (default: TRUE)
@@ -63,9 +65,11 @@ validate_customer_data <- function(data_frame,
 #'   - To column (name specified by to_column)
 #'   - Beginning characteristic columns (preserve first period values)
 #'   - Ending characteristic columns (take last period values)
-#'   - Difference: Gap to previous period, returned in days for Date timelines and
-#'     as difftime seconds for datetime timelines (only when keep_all_periods = TRUE
+#'   - Difference: Gap to the active merge period, returned in days for Date timelines
+#'     and as difftime seconds for datetime timelines (only when keep_all_periods = TRUE
 #'     and include_gap_column = TRUE)
+#'   - period_start: Logical flag returned when keep_all_periods = TRUE. TRUE
+#'     marks rows included in the normal merged-period output.
 #'
 #' @details
 #' The function performs the following operations:
@@ -231,14 +235,13 @@ calculate_customer_timeline <- function(data_frame,
 
   period_start <- is.na(merged_dt$Difference) | merged_dt$Difference > gap_threshold_value
 
-  # Filter results based on keep_all_periods
+  # Keep raw internal rows for debugging, or one row per merged period for normal output.
+  result <- if (keep_all_periods) merged_dt else merged_dt[period_start]
   if (keep_all_periods) {
-    result <- merged_dt[period_start]
-  } else {
-    result <- merged_dt[period_start]
+    result[, period_start := period_start]
   }
 
-  # Handle gap column inclusion
+  # Keep gap diagnostics only when requested.
   if (!keep_all_periods || !include_gap_column) {
     result[, Difference := NULL]
   } else {
