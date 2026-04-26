@@ -2,7 +2,9 @@ Package: customerRelationship
 Title: Customer Relationship Timeline Processing
 Version: 0.1.100
 Authors@R: 
-    person("Patrikios", "", email = "Patrikios@users.noreply.github.com", role = c("aut", "cre"))
+    person(family = "Patrikios",
+           email = "Patrikios@users.noreply.github.com",
+           role = c("aut", "cre"))
 Description: Efficiently processes customer relationship data to identify and merge 
     consecutive periods with gaps using Rcpp for performance and data.table for 
     scalability. Calculates timeline relationships from raw transaction data.
@@ -15,9 +17,7 @@ LinkingTo:
     Rcpp
 Imports: 
     Rcpp (>= 1.0.0),
-    data.table (>= 1.14.0),
-    anytime (>= 0.3.0)
+    data.table (>= 1.14.0)
 Suggests: 
-    testthat (>= 3.0.0),
-    pkgload
+    testthat (>= 3.0.0)
 Config/testthat/edition: 3

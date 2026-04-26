@@ -4,6 +4,8 @@
 .DS_Store
 .devcontainer/
 .vscode/
+*.Rcheck/
+*.tar.gz
 *.o
 *.so
 *.dll

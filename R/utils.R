@@ -19,11 +19,11 @@ is_date_column <- function(x) {
 #' Convert to proper date class
 #' @noRd
 coerce_to_date <- function(x) {
-  if (!is_date_column(x)) {
-    anytime::anydate(x)
-  } else {
-    x
+  if (is_date_column(x)) {
+    return(x)
   }
+
+  parse_date_values(x)
 }
 
 #' Create a copy of data without modifying original
@@ -101,7 +101,7 @@ coerce_temporal_column <- function(x, time_class = c("date", "datetime")) {
     if (inherits(x, "Date")) {
       return(as.POSIXct(x))
     }
-    return(anytime::anytime(x))
+    return(parse_datetime_values(x))
   }
 
   if (inherits(x, "Date")) {
@@ -111,7 +111,89 @@ coerce_temporal_column <- function(x, time_class = c("date", "datetime")) {
     return(as.Date(x))
   }
 
-  anytime::anydate(x)
+  parse_date_values(x)
+}
+
+#' Parse date-like values using base R
+#' @noRd
+parse_date_values <- function(x) {
+  if (is.factor(x)) {
+    x <- as.character(x)
+  }
+
+  parsed <- tryCatch(
+    as.Date(
+      x,
+      tryFormats = c(
+        "%Y-%m-%d",
+        "%Y/%m/%d",
+        "%Y%m%d",
+        "%d-%m-%Y",
+        "%d/%m/%Y",
+        "%m/%d/%Y"
+      )
+    ),
+    error = function(e) rep(as.Date(NA), length(x))
+  )
+
+  if (any(is.na(parsed) & !is.na(x))) {
+    stop("Unable to parse date values", call. = FALSE)
+  }
+
+  parsed
+}
+
+#' Parse datetime-like values using base R
+#' @noRd
+parse_datetime_values <- function(x) {
+  if (is.factor(x)) {
+    x <- as.character(x)
+  }
+
+  if (is.character(x)) {
+    x <- normalize_datetime_text(x)
+  }
+
+  parsed <- tryCatch(
+    as.POSIXct(
+      x,
+      tz = "UTC",
+      tryFormats = c(
+        "%Y-%m-%d %H:%M:%OS%z",
+        "%Y-%m-%dT%H:%M:%OS%z",
+        "%Y/%m/%d %H:%M:%OS%z",
+        "%Y/%m/%dT%H:%M:%OS%z",
+        "%Y-%m-%d %H:%M:%OS",
+        "%Y-%m-%dT%H:%M:%OS",
+        "%Y/%m/%d %H:%M:%OS",
+        "%Y/%m/%dT%H:%M:%OS",
+        "%Y-%m-%d %H:%M%z",
+        "%Y-%m-%dT%H:%M%z",
+        "%Y/%m/%d %H:%M%z",
+        "%Y/%m/%dT%H:%M%z",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%dT%H:%M",
+        "%Y/%m/%d %H:%M",
+        "%Y/%m/%dT%H:%M",
+        "%Y-%m-%d",
+        "%Y/%m/%d"
+      )
+    ),
+    error = function(e) rep(as.POSIXct(NA, tz = "UTC"), length(x))
+  )
+
+  if (any(is.na(parsed) & !is.na(x))) {
+    stop("Unable to parse datetime values", call. = FALSE)
+  }
+
+  parsed
+}
+
+#' Normalize ISO timezone spellings for base R parsing
+#' @noRd
+normalize_datetime_text <- function(x) {
+  x <- sub("Z$", "+0000", x)
+  sub("([+-][0-9]{2}):([0-9]{2})$", "\\1\\2", x)
 }
 
 #' Convert a user-facing gap threshold into the storage units used internally

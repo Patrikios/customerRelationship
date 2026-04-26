@@ -11,7 +11,6 @@
 #' @useDynLib customerRelationship, .registration = TRUE
 #'
 #' @import data.table
-#' @importFrom anytime anydate
 #'
 #' @keywords internal
 "_PACKAGE"

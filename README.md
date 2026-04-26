@@ -1,10 +1,10 @@
 # customerRelationship
 
-An R package for efficiently processing customer relationship data to identify and merge consecutive periods with minimal gaps. Built with **Rcpp** for high-performance C++ computing and **data.table** for scalable data manipulation.
+An R package for efficiently processing customer relationship data, or more generic, iterval data, to identify and merge consecutive periods with minimal gaps. Built with **Rcpp** for better performance using C++ computing and **data.table** for scalable data manipulation.
 
 ## Overview
 
-In essence, the package exists to calculate the overall customer relationship timeline per customer from many fragmented activity inputs. It is particularly useful for CRMs with fragmented data such as SAP or Salesforce. It transforms smaller fragments of orders or positions into continuous periods where the subject has been active without a meaningful pause in relationship.
+In essence, the package exists in order to calculate the overall customer relationship timeline per customer from many fragmented activity inputs. It is particularly useful for CRMs with fragmented data such as SAP or Salesforce. It transforms smaller fragments of orders or positions into continuous periods where the subject has been active without a meaningful pause in relationship.
 
 ## Choose Your Time Granularity
 
@@ -44,7 +44,7 @@ Best when continuity is measured within the day and the collapsed result represe
 
 ## Features
 
-- **High Performance**: C++ implementation via Rcpp for fast period merging
+- **Solid Performance**: C++ implementation via Rcpp for fast period merging
 - **Scalable**: Uses data.table for efficient memory management with large datasets
 - **Clean API**: Simple, well-documented functions for customer timeline processing
 - **Validated Input**: Automatic data validation and type coercion

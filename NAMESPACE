@@ -3,5 +3,4 @@
 export(calculate_customer_timeline)
 import(data.table)
 importFrom(Rcpp,sourceCpp)
-importFrom(anytime,anydate)
 useDynLib(customerRelationship, .registration = TRUE)
