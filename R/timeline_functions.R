@@ -177,8 +177,22 @@ calculate_customer_timeline <- function(data_frame,
   )
   gap_threshold_value <- normalize_gap_threshold(gap_threshold, time_class, gap_units)
 
-  # Start timing
-  start_time <- Sys.time()
+  if (verbose) {
+    # Start timing
+    start_time <- Sys.time()
+    timeline_completed <- FALSE
+
+    on.exit({
+      if (timeline_completed) {
+        # End timing and report
+        end_time <- Sys.time()
+        elapsed <- round(difftime(end_time, start_time, units = "secs"), 1)
+
+        message("Customer relationship timeline calculated in ", elapsed,
+                " secs. Returned ", nrow(result), " periods.")
+      }
+    }, add = TRUE)
+  }
 
   # Convert to data.table if needed and handle copying
   dtable <- data_frame
@@ -243,13 +257,8 @@ calculate_customer_timeline <- function(data_frame,
     result <- result[, .SD, .SDcols = output_columns]
   }
 
-  # End timing and report
-  end_time <- Sys.time()
-  elapsed <- round(difftime(end_time, start_time, units = "secs"), 1)
-
   if (verbose) {
-    message("Customer relationship timeline calculated in ", elapsed,
-            " secs. Returned ", nrow(result), " periods.")
+    timeline_completed <- TRUE
   }
 
   return(result)
