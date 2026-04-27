@@ -8,12 +8,12 @@ calculate_customer_timeline(
   data_frame,
   gap_threshold = 1,
   gap_units = "auto",
-  id_column = "ID",
-  from_column = "From",
-  to_column = "To",
+  id_column,
+  from_column,
+  to_column,
   time_class = c("auto", "date", "datetime"),
-  characteristic_beg_columns = "CharacteristicBeg",
-  characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+  characteristic_beg_columns,
+  characteristic_end_columns,
   keep_all_periods = FALSE,
   verbose = TRUE,
   output_columns = NULL,
@@ -31,21 +31,23 @@ calculate_customer_timeline(
 "auto", "days", "hours", "mins", or "secs". "auto" preserves the legacy
 day-based interpretation (default: "auto")}
 
-\item{id_column}{Character string. Name of the customer ID column (default: "ID")}
+\item{id_column}{Character string. Name of the customer ID column}
 
-\item{from_column}{Character string. Name of the start date column (default: "From")}
+\item{from_column}{Character string. Name of the start date column}
 
-\item{to_column}{Character string. Name of the end date column (default: "To")}
+\item{to_column}{Character string. Name of the end date column}
 
 \item{time_class}{Character string. One of "auto", "date", or "datetime".
 Use "datetime" to preserve intra-day resolution for POSIXct-style inputs
 (default: "auto")}
 
-\item{characteristic_beg_columns}{Character vector. Column names that should preserve beginning values (default: "CharacteristicBeg")}
+\item{characteristic_beg_columns}{Character vector. Column names that should preserve beginning values}
 
-\item{characteristic_end_columns}{Character vector. Column names that should take ending values (default: c("CharacteristicEnd1", "CharacteristicEnd2"))}
+\item{characteristic_end_columns}{Character vector. Column names that should take ending values}
 
-\item{keep_all_periods}{Logical. If TRUE, keep the raw internal rows with gap diagnostics for debugging, including a period_start column that marks rows included in the normal merged-period output (default: FALSE)}
+\item{keep_all_periods}{Logical. If TRUE, keep the raw internal rows with
+gap diagnostics for debugging, including a period_start column that marks
+rows included in the normal merged-period output (default: FALSE)}
 
 \item{verbose}{Logical. If TRUE, print processing time and result summary (default: TRUE)}
 
@@ -63,8 +65,11 @@ A data.table with merged periods, including:
 \item To column (name specified by to_column)
 \item Beginning characteristic columns (preserve first period values)
 \item Ending characteristic columns (take last period values)
-\item Difference: Gap to the active merge period, returned in days for Date timelines and as difftime seconds for datetime timelines (only when keep_all_periods = TRUE and include_gap_column = TRUE)
-\item period_start: Logical flag returned when keep_all_periods = TRUE. TRUE marks rows that start a merged period and would be kept in normal output; FALSE marks internal rows that were merged into an active period.
+\item Difference: Gap to the active merge period, returned in days for Date timelines
+and as difftime seconds for datetime timelines (only when keep_all_periods = TRUE
+and include_gap_column = TRUE)
+\item period_start: Logical flag returned when keep_all_periods = TRUE. TRUE
+marks rows included in the normal merged-period output.
 }
 }
 \description{
@@ -89,7 +94,7 @@ Processing time is printed to console upon completion when verbose = TRUE.
 }
 \examples{
 \dontrun{
-# Basic usage with default column names
+# Basic usage
 data <- data.table::data.table(
   ID = c("CUS001", "CUS001", "CUS001", "CUS002"),
   From = as.Date(c("2020-01-01", "2020-01-02", "2020-02-01", "2020-01-15")),
@@ -99,7 +104,14 @@ data <- data.table::data.table(
   CharacteristicEnd2 = c("Cat_A", "Cat_B", "Cat_B", "Cat_C")
 )
 
-timeline <- calculate_customer_timeline(data)
+timeline <- calculate_customer_timeline(
+  data,
+  id_column = "ID",
+  from_column = "From",
+  to_column = "To",
+  characteristic_beg_columns = "CharacteristicBeg",
+  characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2")
+)
 print(timeline)
 
 # Custom column names with multiple characteristics
@@ -139,6 +151,11 @@ events <- data.table::data.table(
 
 session_timeline <- calculate_customer_timeline(
   events,
+  id_column = "ID",
+  from_column = "From",
+  to_column = "To",
+  characteristic_beg_columns = "CharacteristicBeg",
+  characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
   gap_threshold = 30,
   gap_units = "mins"
 )

@@ -43,14 +43,14 @@ validate_customer_data <- function(data_frame,
 #' @param gap_units Character string. Units for numeric gap_threshold values. One of
 #'   "auto", "days", "hours", "mins", or "secs". "auto" preserves the legacy
 #'   day-based interpretation (default: "auto")
-#' @param id_column Character string. Name of the customer ID column (default: "ID")
-#' @param from_column Character string. Name of the start date column (default: "From")
-#' @param to_column Character string. Name of the end date column (default: "To")
+#' @param id_column Character string. Name of the customer ID column
+#' @param from_column Character string. Name of the start date column
+#' @param to_column Character string. Name of the end date column
 #' @param time_class Character string. One of "auto", "date", or "datetime".
 #'   Use "datetime" to preserve intra-day resolution for POSIXct-style inputs
 #'   (default: "auto")
-#' @param characteristic_beg_columns Character vector. Column names that should preserve beginning values (default: "CharacteristicBeg")
-#' @param characteristic_end_columns Character vector. Column names that should take ending values (default: c("CharacteristicEnd1", "CharacteristicEnd2"))
+#' @param characteristic_beg_columns Character vector. Column names that should preserve beginning values
+#' @param characteristic_end_columns Character vector. Column names that should take ending values
 #' @param keep_all_periods Logical. If TRUE, keep the raw internal rows with
 #'   gap diagnostics for debugging, including a period_start column that marks
 #'   rows included in the normal merged-period output (default: FALSE)
@@ -86,7 +86,7 @@ validate_customer_data <- function(data_frame,
 #'
 #' @examples
 #' \dontrun{
-#' # Basic usage with default column names
+#' # Basic usage
 #' data <- data.table::data.table(
 #'   ID = c("CUS001", "CUS001", "CUS001", "CUS002"),
 #'   From = as.Date(c("2020-01-01", "2020-01-02", "2020-02-01", "2020-01-15")),
@@ -96,7 +96,14 @@ validate_customer_data <- function(data_frame,
 #'   CharacteristicEnd2 = c("Cat_A", "Cat_B", "Cat_B", "Cat_C")
 #' )
 #'
-#' timeline <- calculate_customer_timeline(data)
+#' timeline <- calculate_customer_timeline(
+#'   data,
+#'   id_column = "ID",
+#'   from_column = "From",
+#'   to_column = "To",
+#'   characteristic_beg_columns = "CharacteristicBeg",
+#'   characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2")
+#' )
 #' print(timeline)
 #'
 #' # Custom column names with multiple characteristics
@@ -136,6 +143,11 @@ validate_customer_data <- function(data_frame,
 #'
 #' session_timeline <- calculate_customer_timeline(
 #'   events,
+#'   id_column = "ID",
+#'   from_column = "From",
+#'   to_column = "To",
+#'   characteristic_beg_columns = "CharacteristicBeg",
+#'   characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
 #'   gap_threshold = 30,
 #'   gap_units = "mins"
 #' )
@@ -158,12 +170,12 @@ validate_customer_data <- function(data_frame,
 calculate_customer_timeline <- function(data_frame,
                                       gap_threshold = 1,
                                       gap_units = "auto",
-                                      id_column = "ID",
-                                      from_column = "From",
-                                      to_column = "To",
+                                      id_column,
+                                      from_column,
+                                      to_column,
                                       time_class = c("auto", "date", "datetime"),
-                                      characteristic_beg_columns = "CharacteristicBeg",
-                                      characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+                                      characteristic_beg_columns,
+                                      characteristic_end_columns,
                                       keep_all_periods = FALSE,
                                       verbose = TRUE,
                                       output_columns = NULL,

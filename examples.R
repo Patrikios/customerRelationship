@@ -33,7 +33,14 @@ cat("\n")
 
 # Validate and process
 cat("Processing customer timeline...\n\n")
-result <- calculate_customer_timeline(sample_data)
+result <- calculate_customer_timeline(
+  sample_data,
+  id_column = "ID",
+  from_column = "From",
+  to_column = "To",
+  characteristic_beg_columns = "CharacteristicBeg",
+  characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2")
+)
 
 cat("\nOutput timeline (distinct periods):\n")
 print(result)

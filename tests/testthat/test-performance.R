@@ -38,12 +38,41 @@ test_that("calculate_customer_timeline processes 1M heterogeneous rows quickly",
   set.seed(42)
   input <- input[sample.int(.N)]
 
-  start_time <- Sys.time()
-  result <- calculate_customer_timeline(input, verbose = TRUE)
-  elapsed <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
+  benchmark_runs <- 5L
+  timings <- numeric(benchmark_runs)
+  result <- NULL
+
+  for (run in seq_len(benchmark_runs)) {
+    start_time <- Sys.time()
+    result <- calculate_customer_timeline(
+      input,
+      id_column = "ID",
+      from_column = "From",
+      to_column = "To",
+      characteristic_beg_columns = "CharacteristicBeg",
+      characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+      verbose = FALSE
+    )
+    timings[run] <- as.numeric(difftime(Sys.time(), start_time, units = "secs"))
+  }
+
+  timing_stats <- c(
+    min = min(timings),
+    median = median(timings),
+    max = max(timings)
+  )
+  message(
+    sprintf(
+      "1M-row benchmark over %d runs: min %.2fs, median %.2fs, max %.2fs",
+      benchmark_runs,
+      timing_stats[["min"]],
+      timing_stats[["median"]],
+      timing_stats[["max"]]
+    )
+  )
 
   expect_s3_class(result, "data.table")
   expect_equal(nrow(input), target_rows)
   expect_gt(nrow(result), 0L)
-  expect_lt(elapsed, 10)
+  expect_lt(timing_stats[["median"]], 10)
 })

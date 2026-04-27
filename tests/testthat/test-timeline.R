@@ -9,7 +9,15 @@ expect_matches_legacy <- function(input) {
   legacy_result <- suppressMessages(
     suppressWarnings(legacy_env$CustomerRelationshipTimeline(data.table::copy(input)))
   )
-  package_result <- calculate_customer_timeline(data.table::copy(input), verbose = FALSE)
+  package_result <- calculate_customer_timeline(
+    data.table::copy(input),
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+    verbose = FALSE
+  )
 
   expect_identical(names(package_result), names(legacy_result))
 
@@ -80,7 +88,15 @@ test_that("calculate_customer_timeline merges adjacent periods", {
     CharacteristicEnd2 = c("Alpha", "Beta")
   )
 
-  result <- calculate_customer_timeline(data, verbose = FALSE)
+  result <- calculate_customer_timeline(
+    data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+    verbose = FALSE
+  )
 
   expect_equal(nrow(result), 1)
   expect_equal(result$ID, "A")
@@ -101,7 +117,15 @@ test_that("calculate_customer_timeline separates distant periods", {
     CharacteristicEnd2 = c("Alpha", "Beta")
   )
 
-  result <- calculate_customer_timeline(data, verbose = FALSE)
+  result <- calculate_customer_timeline(
+    data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+    verbose = FALSE
+  )
 
   expect_equal(nrow(result), 2)
   expect_equal(result$ID, c("A", "A"))
@@ -119,7 +143,15 @@ test_that("calculate_customer_timeline handles multiple customers", {
     CharacteristicEnd2 = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  result <- calculate_customer_timeline(data, verbose = FALSE)
+  result <- calculate_customer_timeline(
+    data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+    verbose = FALSE
+  )
 
   expect_equal(nrow(result), 4)
   expect_equal(result[, .N, by = ID]$N, c(2L, 2L))
@@ -135,7 +167,15 @@ test_that("calculate_customer_timeline coerces string dates", {
     CharacteristicEnd2 = c("Alpha", "Beta")
   )
 
-  result <- calculate_customer_timeline(data, verbose = FALSE)
+  result <- calculate_customer_timeline(
+    data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+    verbose = FALSE
+  )
 
   # Should have 1 result
   expect_equal(nrow(result), 1)
@@ -161,6 +201,11 @@ test_that("calculate_customer_timeline preserves POSIXct timelines", {
 
   result <- calculate_customer_timeline(
     data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
     gap_threshold = 30,
     gap_units = "mins",
     keep_all_periods = TRUE,
@@ -190,6 +235,11 @@ test_that("calculate_customer_timeline auto-detects character datetimes", {
 
   result <- calculate_customer_timeline(
     data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
     gap_threshold = as.difftime(15, units = "mins"),
     verbose = FALSE
   )
@@ -211,7 +261,16 @@ test_that("calculate_customer_timeline does not mutate data.frame input when cop
     stringsAsFactors = FALSE
   )
 
-  result <- calculate_customer_timeline(data, verbose = FALSE, copy_data = TRUE)
+  result <- calculate_customer_timeline(
+    data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+    verbose = FALSE,
+    copy_data = TRUE
+  )
 
   expect_equal(nrow(result), 1)
   expect_false(data.table::is.data.table(data))
@@ -230,7 +289,15 @@ test_that("calculate_customer_timeline preserves beginning characteristics", {
     CharacteristicEnd2 = c("Cat_A", "Cat_B")   # Should take "Cat_B"
   )
 
-  result <- calculate_customer_timeline(data, verbose = FALSE)
+  result <- calculate_customer_timeline(
+    data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+    verbose = FALSE
+  )
 
   # Should have 1 result (merged period)
   expect_equal(nrow(result), 1)
@@ -278,11 +345,29 @@ test_that("calculate_customer_timeline respects gap_threshold", {
   )
 
   # With gap_threshold = 1, should have 1 result (gap of 2 days)
-  result1 <- calculate_customer_timeline(data, gap_threshold = 1, verbose = FALSE)
+  result1 <- calculate_customer_timeline(
+    data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+    gap_threshold = 1,
+    verbose = FALSE
+  )
   expect_equal(nrow(result1), 2)
 
   # With gap_threshold = 5, should have 0 results (gap of 2 days <= 5)
-  result5 <- calculate_customer_timeline(data, gap_threshold = 5, verbose = FALSE)
+  result5 <- calculate_customer_timeline(
+    data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+    gap_threshold = 5,
+    verbose = FALSE
+  )
   expect_equal(nrow(result5), 1)
 })
 
@@ -297,12 +382,30 @@ test_that("calculate_customer_timeline keep_all_periods parameter works", {
   )
 
   # keep_all_periods = FALSE (default)
-  result_filtered <- calculate_customer_timeline(data, keep_all_periods = FALSE, verbose = FALSE)
+  result_filtered <- calculate_customer_timeline(
+    data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+    keep_all_periods = FALSE,
+    verbose = FALSE
+  )
   expect_false("Difference" %in% names(result_filtered))
   expect_equal(nrow(result_filtered), 2)
 
   # keep_all_periods = TRUE
-  result_all <- calculate_customer_timeline(data, keep_all_periods = TRUE, verbose = FALSE)
+  result_all <- calculate_customer_timeline(
+    data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+    keep_all_periods = TRUE,
+    verbose = FALSE
+  )
   expect_true("Difference" %in% names(result_all))
   expect_true("period_start" %in% names(result_all))
   expect_equal(nrow(result_all), 3)
@@ -311,6 +414,11 @@ test_that("calculate_customer_timeline keep_all_periods parameter works", {
 
   result_selected <- calculate_customer_timeline(
     data,
+    id_column = "ID",
+    from_column = "From",
+    to_column = "To",
+    characteristic_beg_columns = "CharacteristicBeg",
+    characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
     keep_all_periods = TRUE,
     include_gap_column = FALSE,
     output_columns = c("ID", "From", "period_start"),

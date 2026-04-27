@@ -1,6 +1,6 @@
 Package: customerRelationship
 Title: Customer Relationship Timeline Processing
-Version: 0.1.100
+Version: 0.1.120
 Authors@R: 
     person(family = "Patrikios",
            email = "Patrikios@users.noreply.github.com",
