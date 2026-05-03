@@ -4,3 +4,6 @@
 ^\.gitignore$
 ^\.\.Rcheck$
 ^.*\.Rcheck$
+^LICENSE\.md$
+^endvers\.R$
+^examples\.R$

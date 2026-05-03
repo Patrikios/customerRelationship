@@ -11,7 +11,7 @@ consecutive periods with minimal gaps using Rcpp for performance and
 data.table for scalability.
 }
 \author{
-\strong{Maintainer}: Patrikios \email{Patrikios@users.noreply.github.com}
+\strong{Maintainer}: CustomerRelationship Patrikios \email{Patrikios@users.noreply.github.com}
 
 }
 \keyword{internal}

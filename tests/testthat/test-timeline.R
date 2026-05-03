@@ -6,6 +6,14 @@ expect_matches_legacy <- function(input) {
   }
   source(legacy_path, local = legacy_env)
 
+  old_repos <- getOption("repos")
+  on.exit(options(repos = old_repos), add = TRUE)
+  repos <- old_repos
+  if (is.null(repos) || is.na(repos["CRAN"]) || identical(unname(repos["CRAN"]), "@CRAN@")) {
+    repos <- c(CRAN = "https://cloud.r-project.org")
+  }
+  options(repos = repos)
+
   legacy_result <- suppressMessages(
     suppressWarnings(legacy_env$CustomerRelationshipTimeline(data.table::copy(input)))
   )
