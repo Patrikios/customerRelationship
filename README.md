@@ -149,7 +149,73 @@ session_timeline <- calculate_customer_timeline(
 print(session_timeline)
 ```
 
+## S7 Processor Workflow
+
+For repeated timeline calculations with the same column mapping and options, use
+the `CustomerTimeline` S7 class. It stores the configuration once, then applies it
+with `calculate_timeline()`.
+
+```r
+processor <- CustomerTimeline(
+  id_column = "CustomerID",
+  from_column = "StartDate",
+  to_column = "EndDate",
+  characteristic_beg_columns = c("StatusBeg", "TypeBeg"),
+  characteristic_end_columns = c("StatusEnd", "TypeEnd"),
+  gap_threshold = 1,
+  gap_units = "days",
+  verbose = FALSE
+)
+
+timeline <- calculate_timeline(processor, data2)
+print(timeline)
+```
+
+The same pattern works for intraday timelines:
+
+```r
+session_processor <- CustomerTimeline(
+  id_column = "ID",
+  from_column = "From",
+  to_column = "To",
+  characteristic_beg_columns = "CharacteristicBeg",
+  characteristic_end_columns = c("CharacteristicEnd1", "CharacteristicEnd2"),
+  gap_threshold = 30,
+  gap_units = "mins",
+  keep_all_periods = TRUE,
+  output_columns = c("ID", "From", "To", "period_start"),
+  verbose = FALSE
+)
+
+session_debug <- calculate_timeline(session_processor, events)
+print(session_debug)
+```
+
+Use the function API when each call has different options. Use the S7 processor
+when you want a reusable, validated timeline configuration.
+
 ## Function Reference
+
+### `CustomerTimeline(...)`
+
+Create an S7 processor that stores the same options accepted by
+`calculate_customer_timeline()`, including column mappings, gap thresholds, time
+granularity, debug output, and copy behavior.
+
+```r
+processor <- CustomerTimeline(verbose = FALSE)
+calculate_timeline(processor, data)
+```
+
+The constructor validates configuration immediately. Scalar column arguments
+such as `id_column`, `from_column`, and `to_column` must be single non-empty
+character strings; characteristic and output column arguments can be character
+vectors.
+
+### `calculate_timeline(processor, data_frame, ...)`
+
+Apply a `CustomerTimeline` processor to a data.frame or data.table. The result is
+the same data.table shape returned by `calculate_customer_timeline()`.
 
 ### `calculate_customer_timeline(data_frame, ...)`
 
