@@ -1,2 +1,6 @@
 ^\.devcontainer$
 ^\.vscode$
+^\.git$
+^\.gitignore$
+^\.\.Rcheck$
+^.*\.Rcheck$

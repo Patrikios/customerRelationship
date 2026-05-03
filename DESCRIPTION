@@ -1,23 +1,26 @@
 Package: customerRelationship
 Title: Customer Relationship Timeline Processing
-Version: 0.1.120
+Version: 0.1.121
 Authors@R: 
-    person(family = "Patrikios",
+    person(given = "CustomerRelationship",
+           family = "Patrikios",
            email = "Patrikios@users.noreply.github.com",
            role = c("aut", "cre"))
+Author: CustomerRelationship Patrikios
+Maintainer: CustomerRelationship Patrikios <Patrikios@users.noreply.github.com>
 Description: Efficiently processes customer relationship data to identify and merge 
     consecutive periods with gaps using Rcpp for performance and data.table for 
     scalability. Calculates timeline relationships from raw transaction data.
 License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 LinkingTo: 
     Rcpp
 Imports: 
     Rcpp (>= 1.0.0),
-    data.table (>= 1.14.0)
+    data.table (>= 1.14.0),
+    S7
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
